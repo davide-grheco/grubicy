@@ -1,0 +1,7 @@
+protein_id,ligand_id,smiles,Ki_nM,label
+P001,L1,CCO,12.0,active
+P001,L2,c1ccccc1,250.0,active
+P001,L3,CC(=O)O,50000.0,inactive
+P002,L1,CCN,30.0,active
+P002,L2,CCCl,900.0,active
+P002,L3,CCCC,80000.0,inactive

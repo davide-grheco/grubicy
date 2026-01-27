@@ -1,0 +1,6 @@
+HEADER    DUMMY PROTEIN P002
+ATOM      1  N   ALA A   1      11.104  13.207  10.326  1.00 20.00           N
+ATOM      2  CA  ALA A   1      12.560  13.410  10.200  1.00 20.00           C
+ATOM      3  C   ALA A   1      13.092  14.824  10.540  1.00 20.00           C
+TER
+END

@@ -1,0 +1,16 @@
+{
+  "md": {
+    "timestep_fs": 2,
+    "length_ns": 1,
+    "thermostat": "v-rescale"
+  },
+  "gbsa": {
+    "model": "GBn2",
+    "solute_dielectric": 1.0,
+    "solvent_dielectric": 78.5
+  },
+  "docking": {
+    "method": "dummy_vina",
+    "exhaustiveness": 8
+  }
+}

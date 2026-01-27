@@ -1,0 +1,8 @@
+venv/
+__pycache__/
+*.pyc
+analysis/
+workspace/
+row-cache/
+.row
+.signac

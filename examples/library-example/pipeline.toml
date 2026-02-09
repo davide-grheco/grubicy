@@ -1,0 +1,59 @@
+[workspace]
+value_file = "signac_statepoint.json"
+
+[[actions]]
+name = "s1"
+sp_keys = ["p1"]
+outputs = ["s1/out.json"]
+
+[[actions]]
+name = "s2"
+sp_keys = ["p2"]
+deps = { action = "s1", sp_key = "parent_action" }
+outputs = ["s2/out.json"]
+
+[[actions]]
+name = "s3"
+sp_keys = ["p3"]
+deps = { action = "s2", sp_key = "parent_action" }
+outputs = ["s3/out.json"]
+
+[[experiment]]
+  [experiment.s1]
+  p1 = 1
+  [experiment.s2]
+  p2 = 10
+  [experiment.s3]
+  p3 = 0.1
+
+[[experiment]]
+  [experiment.s1]
+  p1 = 1
+  [experiment.s2]
+  p2 = 10
+  [experiment.s3]
+  p3 = 0.2
+
+[[experiment]]
+  [experiment.s1]
+  p1 = 1
+  [experiment.s2]
+  p2 = 20
+  [experiment.s3]
+  p3 = 0.1
+
+[[experiment]]
+  [experiment.s1]
+  p1 = 1
+  [experiment.s2]
+  p2 = 20
+  [experiment.s3]
+  p3 = 0.2
+
+[[experiment]]
+  [experiment.s1]
+  p1 = 2
+  [experiment.s2]
+  p2 = 10
+  [experiment.s3]
+  p3 = 0.1

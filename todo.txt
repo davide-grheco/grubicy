@@ -1,0 +1,8 @@
+[ ] Review existing sample project and TRD requirements
+[ ] Define initial package layout and config schema representation
+[ ] Implement core spec loading/validation and context binding
+[ ] Add materialization logic with parent pointers and deps_meta
+[ ] Add helper utilities for parent resolution and paths
+[ ] Add row workflow rendering scaffolding
+[ ] Update documentation/README with usage outline
+[ ] Run formatting/linting/tests if available

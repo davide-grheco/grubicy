@@ -90,3 +90,26 @@ def test_cli_migration_plan_and_execute(tmp_path, monkeypatch):
     assert progress_files
     progress = json.loads(progress_files[0].read_text())
     assert progress.get("done") is True
+
+
+def test_cli_collect_params(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    config = _write_config(tmp_path)
+    project = signac.init_project("cli-project")
+    main(["materialize", str(config), "--project", str(project.path)])
+
+    s1 = next(iter(project.find_jobs({"action": "s1"})))
+    s1.doc["result"] = 4
+
+    main(
+        [
+            "collect-params",
+            str(config),
+            "s2",
+            "--project",
+            str(project.path),
+            "--include-doc",
+            "--format",
+            "json",
+        ]
+    )

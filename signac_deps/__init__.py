@@ -16,6 +16,7 @@ from .migrate import (
     execute_migration,
     plan_migration,
 )
+from .collect import CollectedRow, collect_params_with_parents
 
 __all__ = [
     "ActionSpec",
@@ -33,5 +34,7 @@ __all__ = [
     "MigrationReport",
     "plan_migration",
     "execute_migration",
+    "CollectedRow",
+    "collect_params_with_parents",
     "load_spec",
 ]

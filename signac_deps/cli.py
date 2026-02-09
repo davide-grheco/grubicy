@@ -9,6 +9,7 @@ from typing import Dict
 
 import signac
 
+from .collect import collect_params_with_parents
 from .materialize import materialize
 from .migrate import MigrationPlan, execute_migration, plan_migration
 from .row_render import render_row_workflow
@@ -101,6 +102,42 @@ def cmd_status(args: argparse.Namespace) -> None:
     print(json.dumps(summary, indent=2))
 
 
+def cmd_collect_params(args: argparse.Namespace) -> None:
+    spec = load_spec(args.config)
+    project = _get_or_init_project(args.project)
+    rows = collect_params_with_parents(
+        spec,
+        project,
+        args.action,
+        include_doc=args.include_doc,
+        missing_ok=args.missing_ok,
+    )
+    if args.format == "json":
+        payload = [row.data for row in rows]
+        text = json.dumps(payload, indent=2)
+    else:
+        # csv
+        import csv
+        from io import StringIO
+
+        payload = [row.data for row in rows]
+        # Union of keys in order of appearance
+        keys: list[str] = []
+        for row in payload:
+            for k in row.keys():
+                if k not in keys:
+                    keys.append(k)
+        buffer = StringIO()
+        writer = csv.DictWriter(buffer, fieldnames=keys)
+        writer.writeheader()
+        writer.writerows(payload)
+        text = buffer.getvalue()
+    if args.output:
+        Path(args.output).write_text(text, encoding="utf-8")
+    else:
+        print(text)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="signac-deps", description="signac-deps CLI")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -154,6 +191,30 @@ def build_parser() -> argparse.ArgumentParser:
         "--project", help="Path to signac project (defaults to CWD or init)"
     )
     p_status.set_defaults(func=cmd_status)
+
+    p_collect = sub.add_parser(
+        "collect-params", help="Collect params (and optional docs) across parent chain"
+    )
+    p_collect.add_argument("config")
+    p_collect.add_argument("action", help="Target action to collect")
+    p_collect.add_argument(
+        "--project", help="Path to signac project (defaults to CWD or init)"
+    )
+    p_collect.add_argument(
+        "--format", choices=["json", "csv"], default="json", help="Output format"
+    )
+    p_collect.add_argument(
+        "--include-doc",
+        action="store_true",
+        help="Include document fields (excluding reserved)",
+    )
+    p_collect.add_argument(
+        "--missing-ok",
+        action="store_true",
+        help="Skip rows whose parents are missing (default: error)",
+    )
+    p_collect.add_argument("--output", help="Write output to file instead of stdout")
+    p_collect.set_defaults(func=cmd_collect_params)
 
     return parser
 

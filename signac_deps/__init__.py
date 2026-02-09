@@ -8,7 +8,15 @@ and emit row workflows.
 from .spec import ActionSpec, DependencySpec, WorkspaceSpec, WorkflowSpec, load_spec
 from .context import WorkflowContext
 from .materialize import MaterializationReport
-from .helpers import get_parent, open_parent_folder, parent_file, iter_parent_products
+from .helpers import (
+    get_parent,
+    open_parent_folder,
+    parent_file,
+    parent_path,
+    iter_parent_products,
+    open_job_from_directory,
+    get_parent_doc,
+)
 from .row_render import render_row_workflow
 from .migrate import (
     MigrationPlan,
@@ -28,7 +36,10 @@ __all__ = [
     "get_parent",
     "open_parent_folder",
     "parent_file",
+    "parent_path",
     "iter_parent_products",
+    "open_job_from_directory",
+    "get_parent_doc",
     "render_row_workflow",
     "MigrationPlan",
     "MigrationReport",

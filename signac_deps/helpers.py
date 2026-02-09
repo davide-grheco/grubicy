@@ -45,8 +45,31 @@ def parent_file(job: signac.Job, relpath: str | Path, must_exist: bool = True) -
     return path
 
 
+def parent_path(job: signac.Job) -> Path:
+    """Return the parent workspace path for a job."""
+
+    parent = get_parent(job)
+    return Path(parent.path)
+
+
 def iter_parent_products(job: signac.Job, pattern: str = "*") -> Iterator[Path]:
     """Yield paths matching a glob pattern inside the parent workspace."""
 
     parent = get_parent(job)
     return Path(parent.path).glob(pattern)
+
+
+def open_job_from_directory(directory: str) -> signac.Job:
+    """Open a job by workspace directory name (as passed by row)."""
+    dir_path = Path(directory)
+    project = signac.Project.get_project(path=dir_path, search=True)
+    return project.open_job(id=dir_path.name)
+
+
+def get_parent_doc(job: signac.Job, key: str, default=None):
+    """Return a value from the parent job document, ignoring reserved keys."""
+
+    parent = get_parent(job)
+    if key in parent.doc:
+        return parent.doc[key]
+    return default

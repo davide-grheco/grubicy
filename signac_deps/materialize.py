@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Dict, Iterable, List
 
 import signac
@@ -84,7 +85,7 @@ def materialize(
                 parent_jobs[action.name] = job
                 continue
 
-            created = not job.path.exists()
+            created = not Path(job.path).exists()
             job.init()
 
             if parent_job:

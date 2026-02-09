@@ -32,7 +32,7 @@ def open_parent_folder(job: signac.Job, path: str | Path | None = None) -> Path:
     """Return the filesystem path to the parent job workspace, optionally joined with ``path``."""
 
     parent = get_parent(job)
-    base = Path(parent.ws)
+    base = Path(parent.path)
     return base / Path(path) if path is not None else base
 
 
@@ -49,4 +49,4 @@ def iter_parent_products(job: signac.Job, pattern: str = "*") -> Iterator[Path]:
     """Yield paths matching a glob pattern inside the parent workspace."""
 
     parent = get_parent(job)
-    return Path(parent.ws).glob(pattern)
+    return Path(parent.path).glob(pattern)

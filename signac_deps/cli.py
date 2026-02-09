@@ -8,6 +8,8 @@ from pathlib import Path
 from typing import Dict
 
 import signac
+import tomli_w
+import tomllib
 
 from .collect import collect_params_with_parents
 from .materialize import materialize
@@ -44,6 +46,45 @@ def _get_or_init_project(path: str | None = None) -> signac.Project:
         return signac.init_project()
 
 
+def _update_config_for_defaults(
+    config_path: str, action_name: str, defaults: Dict[str, str]
+) -> None:
+    path = Path(config_path)
+    if path.suffix.lower() != ".toml":
+        return
+    data = path.read_text(encoding="utf-8")
+    try:
+        cfg = tomllib.loads(data)
+    except Exception:
+        return
+    changed = False
+    actions = cfg.get("actions") or []
+    for entry in actions:
+        if entry.get("name") != action_name:
+            continue
+        sp_keys = set(entry.get("sp_keys", []))
+        before = set(sp_keys)
+        sp_keys.update(defaults.keys())
+        if sp_keys != before:
+            entry["sp_keys"] = list(sp_keys)
+            changed = True
+
+    experiments = cfg.get("experiments") or cfg.get("experiment") or []
+    for exp in experiments:
+        if not isinstance(exp, dict):
+            continue
+        block = exp.get(action_name)
+        if block is None:
+            continue
+        for k, v in defaults.items():
+            if k not in block:
+                block[k] = v
+                changed = True
+
+    if changed:
+        path.write_text(tomli_w.dumps(cfg), encoding="utf-8")
+
+
 def cmd_materialize(args: argparse.Namespace) -> None:
     spec = load_spec(args.config)
     project = _get_or_init_project(args.project)
@@ -75,6 +116,7 @@ def cmd_migrate_plan(args: argparse.Namespace) -> None:
         transform,
         collision_strategy=args.collision_strategy,
     )
+    _update_config_for_defaults(args.config, args.action, defaults)
     print(f"Wrote migration plan: {plan.plan_path}")
 
 

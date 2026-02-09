@@ -6,3 +6,8 @@ workspace/
 row-cache/
 .row
 .signac
+examples/library-example/workflow.toml
+.coverage
+*.coverage
+signac_deps.egg-info/
+.pipeline_migrations/

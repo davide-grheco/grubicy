@@ -142,6 +142,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "signac" },
+    { name = "tomli-w" },
 ]
 
 [package.optional-dependencies]
@@ -155,6 +156,7 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=5.0" },
     { name = "signac", specifier = ">=2.0" },
+    { name = "tomli-w", specifier = ">=1.0" },
 ]
 provides-extras = ["dev"]
 
@@ -165,6 +167,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/06/f8/dd1fcc92dfeed903be2e2e1d78c5c25e7d32afc73bd43da44fb75d547771/synced_collections-1.0.0.tar.gz", hash = "sha256:c5c72df4074ce95625f155d8bc1ac608ba4d9fbb0fffde4da3c0e3a88a1e30bd", size = 48819, upload-time = "2023-05-17T16:54:52.209Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/4a/62/d47b056adb89c2e826f35d7d1ef16231bc3ce1d935c217725c38bd28a6b3/synced_collections-1.0.0-py3-none-any.whl", hash = "sha256:1b0781bb887f8a0dc113bc07f7df545351e4e8d81a4808503a82952430c48392", size = 57311, upload-time = "2023-05-17T16:54:50.413Z" },
+]
+
+[[package]]
+name = "tomli-w"
+version = "1.2.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/19/75/241269d1da26b624c0d5e110e8149093c759b7a286138f4efd61a60e75fe/tomli_w-1.2.0.tar.gz", hash = "sha256:2dd14fac5a47c27be9cd4c976af5a12d87fb1f0b4512f81d69cce3b35ae25021", size = 7184, upload-time = "2025-01-15T12:07:24.262Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c7/18/c86eb8e0202e32dd3df50d43d7ff9854f8e0603945ff398974c1d91ac1ef/tomli_w-1.2.0-py3-none-any.whl", hash = "sha256:188306098d013b691fcadc011abd66727d3c414c571bb01b1a174ba8c983cf90", size = 6675, upload-time = "2025-01-15T12:07:22.074Z" },
 ]
 
 [[package]]

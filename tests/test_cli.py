@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 import signac
+import tomllib
 
 from signac_deps.cli import main
 
@@ -113,6 +114,31 @@ def test_cli_collect_params(tmp_path, monkeypatch):
             "json",
         ]
     )
+
+
+def test_cli_migrate_plan_updates_config(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    config = _write_config(tmp_path)
+    project = signac.init_project("cli-project")
+    main(["materialize", str(config), "--project", str(project.path)])
+
+    main(
+        [
+            "migrate-plan",
+            str(config),
+            "s2",
+            "--project",
+            str(project.path),
+            "--setdefault",
+            "test=6",
+        ]
+    )
+
+    cfg = tomllib.loads(Path(config).read_text(encoding="utf-8"))
+    s2_block = cfg["actions"][1]
+    assert "test" in s2_block.get("sp_keys", [])
+    for exp in cfg.get("experiment", []):
+        assert exp.get("s2", {}).get("test") == "6"
 
 
 def test_cli_materialize_inits_project(tmp_path, monkeypatch):

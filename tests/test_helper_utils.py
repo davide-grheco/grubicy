@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import json
 from pathlib import Path
 
@@ -9,6 +7,7 @@ from signac_deps.helpers import (
     get_parent,
     get_parent_doc,
     open_job_from_directory,
+    parent_product_exists,
 )
 
 
@@ -33,3 +32,5 @@ def test_job_json_helpers(tmp_path, monkeypatch):
 
     assert get_parent(child).id == parent.id
     assert get_parent_doc(child, "missing", default=5) == 5
+    assert parent_product_exists(child, "s1/out.json") is True
+    assert parent_product_exists(child, "missing.json") is False

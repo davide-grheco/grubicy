@@ -45,6 +45,12 @@ def parent_file(job: signac.Job, relpath: str | Path, must_exist: bool = True) -
     return path
 
 
+def parent_product_exists(job: signac.Job, relpath: str | Path) -> bool:
+    """Return True if a given file exists in the parent workspace."""
+
+    return parent_file(job, relpath, must_exist=False).exists()
+
+
 def parent_path(job: signac.Job) -> Path:
     """Return the parent workspace path for a job."""
 

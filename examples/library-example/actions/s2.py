@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 from signac_deps import get_parent, open_job_from_directory, parent_path
+from signac_deps.helpers import parent_product_exists
 
 
 def main(directory: str):
@@ -11,6 +12,8 @@ def main(directory: str):
     p2 = job.sp["p2"]
 
     parent = get_parent(job)
+    if not parent_product_exists(job, "s1/out.json"):
+        return
     parent_out = parent_path(job) / "s1/out.json"
     with open(parent_out, "r", encoding="utf-8") as f:
         s1 = json.load(f)

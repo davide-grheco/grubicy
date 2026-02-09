@@ -5,13 +5,14 @@ running them with row, and collecting results. Commands assume you are in the re
 root; adjust paths as needed.
 
 ## Prerequisites
-- Python 3.14+
+
+- Python 3.9+
 - `uv` installed (for `uv run ...`)
 - `row` installed if you want to execute the generated workflow (not bundled here)
 
 Install project dependencies:
 ```bash
-uv sync --extra dev
+uv sync
 ```
 
 ## 1) Define the workflow spec
@@ -48,12 +49,74 @@ outputs = ["s3/out.json"]
 ```
 
 Key ideas:
+
 - Each `actions` entry names the stage, its state point keys, optional dependency, and
   expected outputs.
 - `deps.action` points to the parent action; `deps.sp_key` controls which state point
   key will store the parent job id (default `parent_action`).
 - `experiments` hold per-action parameters; missing actions are ignored, extras raise
   a validation error during materialization.
+
+## 1b) Minimal action scripts
+Place action scripts in `actions/`. They receive the job workspace directory from row.
+
+Root action (no parent):
+```python
+# actions/s1.py
+from pathlib import Path
+import json
+import signac
+
+def main(directory: str):
+    project = signac.get_project()
+    job = project.open_job(id=Path(directory).name)
+
+    p1 = job.sp["p1"]
+    out = {"p1": p1, "value": p1 * p1}
+
+    out_path = Path(job.fn("s1/out.json"))
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json.dumps(out), encoding="utf-8")
+
+if __name__ == "__main__":
+    import sys
+    main(sys.argv[1])
+```
+
+Child action (has a parent):
+```python
+# actions/s2.py
+from pathlib import Path
+import json
+import signac
+from grubicy import get_parent, parent_path, parent_product_exists
+
+def main(directory: str):
+    project = signac.get_project()
+    job = project.open_job(id=Path(directory).name)
+
+    parent = get_parent(job)
+    if not parent_product_exists(job, "s1/out.json"):
+        return
+    s1_out = json.loads((parent_path(job) / "s1/out.json").read_text())
+
+    p2 = job.sp["p2"]
+    out = {"p1": s1_out["p1"], "p2": p2, "value2": s1_out["value"] + p2}
+
+    out_path = Path(job.fn("s2/out.json"))
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json.dumps(out), encoding="utf-8")
+
+if __name__ == "__main__":
+    import sys
+    main(sys.argv[1])
+```
+
+Notes for actions:
+
+- Accept the workspace directory argument and open the job by id (directory name).
+- For children, use `grubicy` helpers (`get_parent`, `parent_path`, `parent_product_exists`) to reach upstream outputs safely.
+- Write declared outputs under the job workspace so `grubicy status` (and row products) can verify them.
 
 ## 2) Materialize jobs (and optionally render row)
 ```bash

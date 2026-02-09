@@ -149,6 +149,40 @@ wheels = [
 ]
 
 [[package]]
+name = "grubicy"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "signac" },
+    { name = "tomli-w" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "pytest-cov" },
+]
+docs = [
+    { name = "mkdocs" },
+    { name = "mkdocs-autorefs" },
+    { name = "mkdocs-material" },
+    { name = "mkdocstrings", extra = ["python"] },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "mkdocs", marker = "extra == 'docs'", specifier = ">=1.6.0" },
+    { name = "mkdocs-autorefs", marker = "extra == 'docs'", specifier = ">=1.0.0" },
+    { name = "mkdocs-material", marker = "extra == 'docs'", specifier = ">=9.5.0" },
+    { name = "mkdocstrings", extras = ["python"], marker = "extra == 'docs'", specifier = ">=0.25.0" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
+    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=5.0" },
+    { name = "signac", specifier = ">=2.0" },
+    { name = "tomli-w", specifier = ">=1.0" },
+]
+provides-extras = ["dev", "docs"]
+
+[[package]]
 name = "idna"
 version = "3.11"
 source = { registry = "https://pypi.org/simple" }
@@ -521,38 +555,6 @@ sdist = { url = "https://files.pythonhosted.org/packages/9c/d4/03433264e6db727fd
 wheels = [
     { url = "https://files.pythonhosted.org/packages/c2/d0/ba7cbda6628b978bcadbdd3579e23d5dc3f576bc6362990dc670a5ec6d51/signac-2.3.0-py3-none-any.whl", hash = "sha256:a4985f77323fe116bbdd28bb39354a908b598bd1551500ea2bff7ca81aca06c0", size = 129502, upload-time = "2025-04-14T15:16:31.255Z" },
 ]
-
-[[package]]
-name = "grubicy"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "signac" },
-    { name = "tomli-w" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "pytest" },
-    { name = "pytest-cov" },
-]
-docs = [
-    { name = "mkdocs" },
-    { name = "mkdocs-material" },
-    { name = "mkdocstrings", extra = ["python"] },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "mkdocs", marker = "extra == 'docs'", specifier = ">=1.6.0" },
-    { name = "mkdocs-material", marker = "extra == 'docs'", specifier = ">=9.5.0" },
-    { name = "mkdocstrings", extras = ["python"], marker = "extra == 'docs'", specifier = ">=0.25.0" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
-    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=5.0" },
-    { name = "signac", specifier = ">=2.0" },
-    { name = "tomli-w", specifier = ">=1.0" },
-]
-provides-extras = ["dev", "docs"]
 
 [[package]]
 name = "six"

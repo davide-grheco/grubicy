@@ -13,7 +13,13 @@ class DependencyResolutionError(Exception):
 
 
 def get_parent(job: signac.Job) -> signac.Job:
-    """Return the parent job referenced by ``parent_action`` in the state point."""
+    """Return the parent job referenced by ``parent_action`` in the state point.
+
+    Raises
+    ------
+    DependencyResolutionError
+        If the job does not declare a parent or the referenced job cannot be opened.
+    """
 
     key = "parent_action"
     if key not in job.sp:

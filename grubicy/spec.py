@@ -40,6 +40,25 @@ class ActionSpec:
 
     @staticmethod
     def from_mapping(data: Dict[str, Any]) -> "ActionSpec":
+        """Create an :class:`ActionSpec` from a mapping.
+
+        Parameters
+        ----------
+        data
+            Mapping parsed from config (TOML/YAML). Must contain ``name`` and may
+            provide ``sp_keys``, ``outputs``, ``runner``, and a ``deps`` table with
+            ``action`` and optional ``sp_key``.
+
+        Returns
+        -------
+        ActionSpec
+            Parsed action definition with optional dependency.
+
+        Raises
+        ------
+        ConfigValidationError
+            If required fields are missing or have an unexpected structure.
+        """
         if "name" not in data:
             raise ConfigValidationError("Each action must define a name")
 
@@ -80,6 +99,18 @@ class WorkspaceSpec:
 
     @staticmethod
     def from_mapping(data: Dict[str, Any]) -> "WorkspaceSpec":
+        """Create a workspace spec from a mapping.
+
+        Parameters
+        ----------
+        data
+            Mapping parsed from config; if empty defaults are used.
+
+        Returns
+        -------
+        WorkspaceSpec
+            Workspace settings (currently only ``value_file``).
+        """
         if not data:
             return WorkspaceSpec()
         value_file = data.get("value_file", "signac_statepoint.json")
@@ -108,6 +139,7 @@ class WorkflowSpec:
 
     @staticmethod
     def load(path: str | Path) -> "WorkflowSpec":
+        """Load and validate a workflow spec from a TOML or YAML file."""
         path = Path(path)
         if not path.exists():
             raise FileNotFoundError(path)
@@ -128,6 +160,7 @@ class WorkflowSpec:
 
     @staticmethod
     def from_mapping(data: Dict[str, Any]) -> "WorkflowSpec":
+        """Construct a spec from a parsed mapping (already loaded TOML/YAML)."""
         raw_actions = data.get("actions") or data.get("action")
         if not raw_actions:
             raise ConfigValidationError("Configuration must include an 'actions' array")
@@ -164,6 +197,13 @@ class WorkflowSpec:
         self.topological_actions()
 
     def topological_actions(self) -> List[ActionSpec]:
+        """Return actions ordered so parents come before children.
+
+        Raises
+        ------
+        ConfigValidationError
+            If the dependency graph contains a cycle.
+        """
         indegree = {a.name: 0 for a in self.actions}
         children: Dict[str, List[str]] = {a.name: [] for a in self.actions}
         for action in self.actions:
@@ -189,9 +229,12 @@ class WorkflowSpec:
 
     @property
     def experiments(self) -> List[Dict[str, Dict[str, Any]]]:
+        """List of experiment parameter blocks copied from the config."""
+
         return list(self._experiments)
 
     def get_action(self, name: str) -> ActionSpec:
+        """Return an action by name or raise :class:`ConfigValidationError`."""
         try:
             return self._action_index[name]
         except KeyError as exc:
@@ -199,6 +242,6 @@ class WorkflowSpec:
 
 
 def load_spec(path: str | Path) -> WorkflowSpec:
-    """Load and validate a workflow spec from disk."""
+    """Load and validate a workflow spec from disk (TOML or YAML)."""
 
     return WorkflowSpec.load(path)

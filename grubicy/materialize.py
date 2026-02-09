@@ -24,6 +24,7 @@ class MaterializationReport:
 def _validate_params(
     params: Dict[str, Any], sp_keys: Iterable[str], action_name: str
 ) -> Dict[str, Any]:
+    """Whitelist parameters against ``sp_keys`` and reject extras."""
     sp_key_set = set(sp_keys)
     extras = set(params) - sp_key_set
     if extras:
@@ -48,9 +49,19 @@ def materialize(
     project
         signac project to bind jobs to.
     experiments
-        List of per-action parameter mappings.
+        List of per-action parameter mappings, typically ``spec.experiments``.
     dry_run
-        If True, compute ids without writing to disk.
+        If True, compute ids without writing to disk or touching docs.
+
+    Returns
+    -------
+    MaterializationReport
+        Counts of created/total jobs and ids grouped by action.
+
+    Raises
+    ------
+    ConfigValidationError
+        If experiments include unknown parameters or are missing required parents.
     """
 
     report = MaterializationReport(per_action={}, created=0, total=0, dry_run=dry_run)

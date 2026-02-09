@@ -7,7 +7,7 @@ and emit row workflows.
 
 from .spec import ActionSpec, DependencySpec, WorkspaceSpec, WorkflowSpec, load_spec
 from .context import WorkflowContext
-from .materialize import MaterializationReport
+from .materialize import MaterializationReport, materialize
 from .helpers import (
     get_parent,
     open_parent_folder,
@@ -34,6 +34,7 @@ __all__ = [
     "WorkflowSpec",
     "WorkflowContext",
     "MaterializationReport",
+    "materialize",
     "get_parent",
     "open_parent_folder",
     "parent_file",

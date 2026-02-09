@@ -2,14 +2,23 @@
 
 This page is generated from the library docstrings via mkdocstrings.
 
-## Package index
+### Core spec
+::: grubicy.spec
 
-::: grubicy
-    handler: python
-    options:
-      show_root_heading: false
-      show_source: false
-      docstring_style: google
-      merge_init_into_class: true
-      heading_level: 2
-      members_order: source
+### Context
+::: grubicy.context
+
+### Materialization
+::: grubicy.materialize
+
+### Helpers
+::: grubicy.helpers
+
+### Row workflow rendering
+::: grubicy.row_render
+
+### Collection
+::: grubicy.collect
+
+### Migration
+::: grubicy.migrate

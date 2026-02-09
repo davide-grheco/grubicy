@@ -10,6 +10,12 @@ from .context import WorkflowContext
 from .materialize import MaterializationReport
 from .helpers import get_parent, open_parent_folder, parent_file, iter_parent_products
 from .row_render import render_row_workflow
+from .migrate import (
+    MigrationPlan,
+    MigrationReport,
+    execute_migration,
+    plan_migration,
+)
 
 __all__ = [
     "ActionSpec",
@@ -23,5 +29,9 @@ __all__ = [
     "parent_file",
     "iter_parent_products",
     "render_row_workflow",
+    "MigrationPlan",
+    "MigrationReport",
+    "plan_migration",
+    "execute_migration",
     "load_spec",
 ]

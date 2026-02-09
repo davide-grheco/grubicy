@@ -8,6 +8,7 @@ row-cache/
 .signac
 examples/library-example/workflow.toml
 .coverage
+site/
 *.coverage
 signac_deps.egg-info/
 .pipeline_migrations/

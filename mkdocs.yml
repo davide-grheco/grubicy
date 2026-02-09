@@ -1,0 +1,23 @@
+site_name: signac-deps
+site_description: Config-driven helpers for signac pipelines with dependencies and migrations
+repo_url: https://example.com/signac-deps
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - toc.integrate
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: google
+            show_root_heading: true
+            show_source: false
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - CLI: cli.md
+  - API: api.md

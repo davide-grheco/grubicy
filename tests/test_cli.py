@@ -75,7 +75,7 @@ def test_cli_migration_plan_and_execute(tmp_path, monkeypatch):
     plan_path = plans[0]
     main(
         [
-            "migrate-execute",
+            "migrate-apply",
             str(config),
             "s1",
             "--project",

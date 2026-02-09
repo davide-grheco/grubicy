@@ -89,7 +89,11 @@ def cmd_materialize(args: argparse.Namespace) -> None:
     spec = load_spec(args.config)
     project = _get_or_init_project(args.project)
     report = materialize(spec, project, spec.experiments, dry_run=args.dry_run)
-    print(json.dumps(report.__dict__, indent=2, default=str))
+    if getattr(args, "format", "json") == "json":
+        print(json.dumps(report.__dict__, indent=2, default=str))
+    else:
+        counts = ",".join(f"{k}:{len(v)}" for k, v in report.per_action.items())
+        print(f"materialize total={report.total} created={report.created} [{counts}]")
 
 
 def cmd_render_row(args: argparse.Namespace) -> None:
@@ -123,9 +127,17 @@ def cmd_migrate_plan(args: argparse.Namespace) -> None:
 def cmd_migrate_execute(args: argparse.Namespace) -> None:
     spec = load_spec(args.config)
     project = _get_or_init_project(args.project)
-    plan = MigrationPlan.from_path(args.plan)
+    plan_path = _resolve_plan_path(project, args.plan)
+    plan = MigrationPlan.from_path(plan_path)
+    if getattr(args, "dry_run", False):
+        print(json.dumps(plan.to_dict(), indent=2))
+        return
     report = execute_migration(spec, project, plan, resume=not args.no_resume)
-    print(json.dumps(report.__dict__, indent=2, default=str))
+    if getattr(args, "format", "json") == "json":
+        print(json.dumps(report.__dict__, indent=2, default=str))
+    else:
+        counts = ", ".join(f"{k}:{v}" for k, v in report.updated_actions.items())
+        print(f"apply plan {plan_path} updated {{{counts}}}")
 
 
 def cmd_status(args: argparse.Namespace) -> None:
@@ -144,7 +156,13 @@ def cmd_status(args: argparse.Namespace) -> None:
             "count": len(jobs),
             "missing_products": missing_products,
         }
-    print(json.dumps(summary, indent=2))
+    if getattr(args, "missing_only", False):
+        summary = {k: v for k, v in summary.items() if v["missing_products"]}
+    if getattr(args, "format", "json") == "json":
+        print(json.dumps(summary, indent=2))
+    else:
+        for name, meta in summary.items():
+            print(f"{name}: count={meta['count']} missing={meta['missing_products']}")
 
 
 def cmd_collect_params(args: argparse.Namespace) -> None:
@@ -183,6 +201,28 @@ def cmd_collect_params(args: argparse.Namespace) -> None:
         print(text)
 
 
+def cmd_prepare(args: argparse.Namespace) -> None:
+    spec = load_spec(args.config)
+    project = _get_or_init_project(args.project)
+    materialize(spec, project, spec.experiments, dry_run=False)
+    out = None
+    if not getattr(args, "no_render", False):
+        out = render_row_workflow(spec, args.output)
+    msg = f"Prepared project at {project.path}"
+    if out:
+        msg += f"; workflow={out}"
+    print(msg)
+
+
+def _resolve_plan_path(project: signac.Project, provided: str | None) -> Path:
+    if provided:
+        return Path(provided)
+    plans = sorted(Path(project.path).glob(".pipeline_migrations/plan_*.json"))
+    if not plans:
+        raise SystemExit("No migration plans found; specify --plan")
+    return plans[-1]
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="signac-deps", description="signac-deps CLI")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -193,13 +233,16 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_mat = sub.add_parser("materialize", help="Materialize jobs")
     p_mat.add_argument("config")
-    p_mat.add_argument("--project", help="Path to signac project (defaults to CWD)")
+    p_mat.add_argument(
+        "-p", "--project", help="Path to signac project (defaults to CWD)"
+    )
     p_mat.add_argument("--dry-run", action="store_true")
+    p_mat.add_argument("-f", "--format", choices=["json", "table"], default="table")
     p_mat.set_defaults(func=cmd_materialize)
 
     p_row = sub.add_parser("render-row", help="Render row workflow")
     p_row.add_argument("config")
-    p_row.add_argument("--output", default="workflow.toml")
+    p_row.add_argument("-o", "--output", default="workflow.toml")
     p_row.set_defaults(func=cmd_render_row)
 
     p_plan = sub.add_parser(
@@ -208,7 +251,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_plan.add_argument("config")
     p_plan.add_argument("action")
     p_plan.add_argument(
-        "--project", help="Path to signac project (defaults to CWD or init)"
+        "-p", "--project", help="Path to signac project (defaults to CWD or init)"
     )
     p_plan.add_argument(
         "--setdefault", nargs="*", default=[], help="key=value defaults to add"
@@ -220,21 +263,25 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_plan.set_defaults(func=cmd_migrate_plan)
 
-    p_exec = sub.add_parser("migrate-execute", help="Execute a migration plan")
+    p_exec = sub.add_parser("migrate-apply", help="Execute a migration plan")
     p_exec.add_argument("config")
     p_exec.add_argument("action")
     p_exec.add_argument(
-        "--project", help="Path to signac project (defaults to CWD or init)"
+        "-p", "--project", help="Path to signac project (defaults to CWD or init)"
     )
-    p_exec.add_argument("--plan", required=True, help="Path to plan file")
+    p_exec.add_argument("--plan", help="Path to plan file (defaults to latest)")
+    p_exec.add_argument("--dry-run", action="store_true")
     p_exec.add_argument("--no-resume", action="store_true")
+    p_exec.add_argument("-f", "--format", choices=["json", "table"], default="table")
     p_exec.set_defaults(func=cmd_migrate_execute)
 
     p_status = sub.add_parser("status", help="Summarize jobs per action")
     p_status.add_argument("config")
     p_status.add_argument(
-        "--project", help="Path to signac project (defaults to CWD or init)"
+        "-p", "--project", help="Path to signac project (defaults to CWD or init)"
     )
+    p_status.add_argument("-f", "--format", choices=["json", "table"], default="table")
+    p_status.add_argument("--missing-only", action="store_true")
     p_status.set_defaults(func=cmd_status)
 
     p_collect = sub.add_parser(
@@ -243,10 +290,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_collect.add_argument("config")
     p_collect.add_argument("action", help="Target action to collect")
     p_collect.add_argument(
-        "--project", help="Path to signac project (defaults to CWD or init)"
+        "-p", "--project", help="Path to signac project (defaults to CWD or init)"
     )
     p_collect.add_argument(
-        "--format", choices=["json", "csv"], default="json", help="Output format"
+        "-f", "--format", choices=["json", "csv"], default="json", help="Output format"
     )
     p_collect.add_argument(
         "--include-doc",
@@ -258,8 +305,19 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Skip rows whose parents are missing (default: error)",
     )
-    p_collect.add_argument("--output", help="Write output to file instead of stdout")
+    p_collect.add_argument(
+        "-o", "--output", help="Write output to file instead of stdout"
+    )
     p_collect.set_defaults(func=cmd_collect_params)
+
+    p_prepare = sub.add_parser("prepare", help="Validate, materialize, render row")
+    p_prepare.add_argument("config")
+    p_prepare.add_argument(
+        "-p", "--project", help="Path to signac project (defaults to CWD)"
+    )
+    p_prepare.add_argument("-o", "--output", default="workflow.toml")
+    p_prepare.add_argument("--no-render", action="store_true")
+    p_prepare.set_defaults(func=cmd_prepare)
 
     return parser
 

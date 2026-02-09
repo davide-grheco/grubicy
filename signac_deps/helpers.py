@@ -68,7 +68,14 @@ def iter_parent_products(job: signac.Job, pattern: str = "*") -> Iterator[Path]:
 def open_job_from_directory(directory: str) -> signac.Job:
     """Open a job by workspace directory name (as passed by row)."""
     dir_path = Path(directory)
-    project = signac.Project.get_project(path=dir_path, search=True)
+    if dir_path.exists():
+        base = dir_path
+    else:
+        base = dir_path
+    try:
+        project = signac.Project.get_project(path=base, search=True)
+    except LookupError:
+        project = signac.get_project()
     return project.open_job(id=dir_path.name)
 
 

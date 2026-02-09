@@ -7,10 +7,11 @@ workflow from a single TOML spec.
 
 Run from this directory so the signac project and workspace live here.
 
-1) Materialize jobs and render row workflow:
+1) Materialize jobs and render row workflow via CLI:
 
 ```bash
-uv run python materialize_and_render.py
+uv run signac-deps materialize pipeline.toml --project .
+uv run signac-deps render-row pipeline.toml --output workflow.toml
 ```
 
 Outputs:

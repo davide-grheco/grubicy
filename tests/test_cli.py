@@ -113,3 +113,15 @@ def test_cli_collect_params(tmp_path, monkeypatch):
             "json",
         ]
     )
+
+
+def test_cli_materialize_inits_project(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    config = _write_config(tmp_path)
+
+    # No project initialized; CLI should init at --project path.
+    main(["materialize", str(config), "--project", str(tmp_path)])
+
+    # Should be able to open the project now.
+    proj = signac.Project.get_project(path=tmp_path)
+    assert proj is not None

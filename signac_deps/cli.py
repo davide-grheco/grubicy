@@ -34,11 +34,14 @@ def cmd_validate(args: argparse.Namespace) -> None:
 
 def _get_or_init_project(path: str | None = None) -> signac.Project:
     if path:
-        return signac.Project(path)
+        try:
+            return signac.Project(path)
+        except LookupError:
+            return signac.init_project(path=path)
     try:
         return signac.get_project()
     except LookupError:
-        return signac.init_project("signac-deps")
+        return signac.init_project()
 
 
 def cmd_materialize(args: argparse.Namespace) -> None:

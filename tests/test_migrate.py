@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import json
 import pytest
 import signac
 
@@ -83,6 +84,14 @@ def test_migration_cascades_downstream(tmp_path, monkeypatch):
 
     # Product moved with the renamed job.
     assert any(Path(j.fn("s1/out.json")).exists() for j in new_s1_jobs)
+
+    # Progress log exists
+    progress_files = list(
+        Path(project.path).glob(".pipeline_migrations/**/progress.json")
+    )
+    assert progress_files
+    progress = json.loads(progress_files[0].read_text())
+    assert progress.get("done") is True
 
 
 def test_migration_plan_detects_collision(tmp_path, monkeypatch):

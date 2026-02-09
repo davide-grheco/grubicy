@@ -82,6 +82,28 @@ class MigrationReport:
     plan_path: Optional[Path]
 
 
+def _run_dir(project: signac.Project, plan: MigrationPlan) -> Path:
+    base = Path(project.path) / ".pipeline_migrations"
+    stem = (
+        plan.plan_path.stem
+        if plan.plan_path
+        else f"plan_{plan.action_name}_{datetime.now(UTC).strftime('%Y%m%dT%H%M%S')}"
+    )
+    # try to reuse timestamp suffix if present
+    parts = stem.split("_")
+    stamp = (
+        parts[-1] if len(parts) >= 3 else datetime.now(UTC).strftime("%Y%m%dT%H%M%S")
+    )
+    run_dir = base / f"run_{plan.action_name}_{stamp}"
+    run_dir.mkdir(parents=True, exist_ok=True)
+    return run_dir
+
+
+def _write_progress(run_dir: Path, data: Dict[str, Any]) -> None:
+    path = run_dir / "progress.json"
+    path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+
 def _maybe_move_workspace(old_path: Path, new_path: Path) -> None:
     if old_path == new_path:
         return
@@ -188,30 +210,61 @@ def _release_lock(lock_path: Path) -> None:
 
 
 def execute_migration(
-    spec: WorkflowSpec, project: signac.Project, plan: MigrationPlan
+    spec: WorkflowSpec,
+    project: signac.Project,
+    plan: MigrationPlan,
+    *,
+    resume: bool = True,
 ) -> MigrationReport:
-    """Execute a migration plan and cascade dependency pointer rewrites."""
+    """Execute a migration plan and cascade dependency pointer rewrites.
+
+    Writes progress under ``.pipeline_migrations`` so a rerun can resume safely.
+    """
 
     lock = _acquire_lock(project)
     updated_counts: Dict[str, int] = {}
+    run_dir = _run_dir(project, plan)
+    mapping_by_action: Dict[str, Dict[str, str]] = {}
+
+    progress_path = run_dir / "progress.json"
+    if resume and progress_path.exists():
+        try:
+            progress = json.loads(progress_path.read_text())
+            mapping_by_action = progress.get("mapping", {})
+            updated_counts = progress.get("updated_counts", {})
+        except json.JSONDecodeError:
+            mapping_by_action = {}
+            updated_counts = {}
+
     try:
         # Apply primary action migration
-        mapping_by_action: Dict[str, Dict[str, str]] = {}
-        primary_map: Dict[str, str] = {}
-        for entry in plan.entries:
-            job = project.open_job(id=entry.old_id)
-            old_path = Path(job.path)
-            if job.sp == entry.new_sp:
+        primary_map: Dict[str, str] = mapping_by_action.get(plan.action_name, {})
+        if not primary_map:
+            for entry in plan.entries:
+                job = project.open_job(id=entry.old_id)
+                old_path = Path(job.path)
+                if job.sp == entry.new_sp:
+                    primary_map[entry.old_id] = entry.new_id
+                    continue
+                job.sp = entry.new_sp
+                new_path = Path(project.open_job(entry.new_sp).path)
+                _maybe_move_workspace(old_path, new_path)
                 primary_map[entry.old_id] = entry.new_id
-                continue
-            job.sp = entry.new_sp
-            new_path = Path(project.open_job(entry.new_sp).path)
-            _maybe_move_workspace(old_path, new_path)
-            primary_map[entry.old_id] = entry.new_id
-            updated_counts[plan.action_name] = (
-                updated_counts.get(plan.action_name, 0) + 1
+                updated_counts[plan.action_name] = (
+                    updated_counts.get(plan.action_name, 0) + 1
+                )
+            mapping_by_action[plan.action_name] = primary_map
+            _write_progress(
+                run_dir,
+                {
+                    "action": plan.action_name,
+                    "mapping": mapping_by_action,
+                    "updated_counts": updated_counts,
+                    "collisions": plan.collisions,
+                    "done": False,
+                    "timestamp": datetime.now(UTC).isoformat(),
+                },
             )
-        mapping_by_action[plan.action_name] = primary_map
 
         # Cascade to downstream actions
         topo = spec.topological_actions()
@@ -229,7 +282,7 @@ def execute_migration(
                 continue
             parent_map = mapping_by_action[parent_action]
 
-            current_map: Dict[str, str] = {}
+            current_map: Dict[str, str] = mapping_by_action.get(action.name, {})
             for job in project.find_jobs({"action": action.name}):
                 dep_key = action.dependency.sp_key
                 parent_id = job.sp.get(dep_key)
@@ -259,6 +312,29 @@ def execute_migration(
                 updated_counts[action.name] = updated_counts.get(action.name, 0) + 1
             if current_map:
                 mapping_by_action[action.name] = current_map
+                _write_progress(
+                    run_dir,
+                    {
+                        "action": plan.action_name,
+                        "mapping": mapping_by_action,
+                        "updated_counts": updated_counts,
+                        "collisions": plan.collisions,
+                        "done": False,
+                        "timestamp": datetime.now(UTC).isoformat(),
+                    },
+                )
+
+        _write_progress(
+            run_dir,
+            {
+                "action": plan.action_name,
+                "mapping": mapping_by_action,
+                "updated_counts": updated_counts,
+                "collisions": plan.collisions,
+                "done": True,
+                "timestamp": datetime.now(UTC).isoformat(),
+            },
+        )
 
         return MigrationReport(
             action_name=plan.action_name,

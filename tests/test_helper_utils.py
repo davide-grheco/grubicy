@@ -3,7 +3,7 @@ from pathlib import Path
 
 import signac
 
-from signac_deps.helpers import (
+from grubicy.helpers import (
     get_parent,
     get_parent_doc,
     open_job_from_directory,

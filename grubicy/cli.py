@@ -1,4 +1,4 @@
-"""Command-line interface for signac-deps."""
+"""Command-line interface for grubicy."""
 
 from __future__ import annotations
 
@@ -224,7 +224,7 @@ def _resolve_plan_path(project: signac.Project, provided: str | None) -> Path:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="signac-deps", description="signac-deps CLI")
+    parser = argparse.ArgumentParser(prog="grubicy", description="grubicy CLI")
     sub = parser.add_subparsers(dest="command", required=True)
 
     p_val = sub.add_parser("validate", help="Validate a config")

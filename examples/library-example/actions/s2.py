@@ -1,8 +1,8 @@
 import json
 from pathlib import Path
 
-from signac_deps import get_parent, open_job_from_directory, parent_path
-from signac_deps.helpers import parent_product_exists
+from grubicy import get_parent, open_job_from_directory, parent_path
+from grubicy.helpers import parent_product_exists
 
 
 def main(directory: str):

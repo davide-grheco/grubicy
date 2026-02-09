@@ -3,9 +3,9 @@ from pathlib import Path
 import pytest
 import signac
 
-from signac_deps.helpers import DependencyResolutionError, get_parent, parent_file
-from signac_deps.materialize import materialize
-from signac_deps.spec import ConfigValidationError, WorkflowSpec
+from grubicy.helpers import DependencyResolutionError, get_parent, parent_file
+from grubicy.materialize import materialize
+from grubicy.spec import ConfigValidationError, WorkflowSpec
 
 
 def _spec_two_actions():

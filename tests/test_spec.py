@@ -1,6 +1,6 @@
 import pytest
 
-from signac_deps.spec import ConfigValidationError, WorkflowSpec
+from grubicy.spec import ConfigValidationError, WorkflowSpec
 
 
 def test_topological_order_and_experiments():

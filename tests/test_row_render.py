@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from signac_deps.row_render import render_row_workflow
-from signac_deps.spec import WorkflowSpec
+from grubicy.row_render import render_row_workflow
+from grubicy.spec import WorkflowSpec
 
 
 def test_row_render_includes_actions_and_workspace(tmp_path):

@@ -2,7 +2,7 @@ Library-based example
 =====================
 
 This example mirrors the original sample pipeline (s1 -> s2 -> s3) but uses
-the `signac-deps` library to define actions, materialize jobs, and render a row
+the `grubicy` library to define actions, materialize jobs, and render a row
 workflow from a single TOML spec.
 
 Run from this directory so the signac project and workspace live here.
@@ -10,8 +10,8 @@ Run from this directory so the signac project and workspace live here.
 1) Materialize jobs and render row workflow via CLI:
 
 ```bash
-uv run signac-deps materialize pipeline.toml --project .
-uv run signac-deps render-row pipeline.toml --output workflow.toml
+uv run grubicy materialize pipeline.toml --project .
+uv run grubicy render-row pipeline.toml --output workflow.toml
 ```
 
 Outputs:

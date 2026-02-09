@@ -1,5 +1,5 @@
 [project]
-name = "signac-deps"
+name = "grubicy"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
@@ -21,7 +21,7 @@ docs = [
 ]
 
 [project.scripts]
-signac-deps = "signac_deps.cli:main"
+grubicy = "grubicy.cli:main"
 
 [tool.uv]
 package = true

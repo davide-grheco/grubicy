@@ -4,7 +4,7 @@ from pathlib import Path
 import signac
 import tomllib
 
-from signac_deps.cli import main
+from grubicy.cli import main
 
 
 def _write_config(tmp_path: Path) -> Path:

@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pandas as pd
 import signac
-from signac_deps import get_parent
+from grubicy import get_parent
 
 
 def read_json(path: Path) -> dict:

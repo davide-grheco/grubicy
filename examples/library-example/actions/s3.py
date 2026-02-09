@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 
 import signac
-from signac_deps import get_parent
+from grubicy import get_parent
 
 
 def main(directory: str):

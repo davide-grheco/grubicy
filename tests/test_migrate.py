@@ -4,13 +4,13 @@ import json
 import pytest
 import signac
 
-from signac_deps.materialize import materialize
-from signac_deps.migrate import (
+from grubicy.materialize import materialize
+from grubicy.migrate import (
     MigrationCollisionError,
     execute_migration,
     plan_migration,
 )
-from signac_deps.spec import WorkflowSpec
+from grubicy.spec import WorkflowSpec
 
 
 def _spec_three_actions():

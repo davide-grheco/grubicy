@@ -10,5 +10,5 @@ examples/library-example/workflow.toml
 .coverage
 site/
 *.coverage
-signac_deps.egg-info/
+grubicy.egg-info/
 .pipeline_migrations/

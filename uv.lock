@@ -523,7 +523,7 @@ wheels = [
 ]
 
 [[package]]
-name = "signac-deps"
+name = "grubicy"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [

@@ -64,6 +64,7 @@ If you modify:
 
 …then you MUST also update:
 - README/docs
+- docs/
 - example projects (e.g., `examples/minimal_scaffold`)
 - any `scaffold.toml` or workflow config artifacts
 

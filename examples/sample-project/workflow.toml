@@ -1,0 +1,24 @@
+# workflow.toml
+[workspace]
+value_file = "signac_statepoint.json"
+
+[[action]]
+name = "s1"
+command = "python actions/s1.py {directory}"
+products = ["s1/out.json"]
+[[action.group.include]]
+condition = ["/subproject", "==", "s1"]
+
+[[action]]
+name = "s2"
+command = "python actions/s2.py {directory}"
+products = ["s2/out.json"]
+[[action.group.include]]
+condition = ["/subproject", "==", "s2"]
+
+[[action]]
+name = "s3"
+command = "python actions/s3.py {directory}"
+products = ["s3/out.json"]
+[[action.group.include]]
+condition = ["/subproject", "==", "s3"]

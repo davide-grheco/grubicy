@@ -94,6 +94,10 @@ Notes:
 - Experiments use per-action subsections: parameters do not need to be shared across
   stages.
 
+Defining multiple experiments:
+- Repeat the `[[experiment]]` block to create multiple experiment rows. See a complete
+  multi-experiment spec in `examples/library-example/pipeline.toml`.
+
 3) Materialize jobs and render a row workflow
 ```bash
 uv run grubicy prepare pipeline.toml --project . --output workflow.toml
@@ -157,3 +161,4 @@ Examples
 Documentation
 - `docs/getting-started.md` — walkthrough
 - `docs/cli.md` — CLI reference
+- `docs/migrations.md` — worked migration example

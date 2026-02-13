@@ -33,6 +33,12 @@ What you get:
 - One spec for everything: job creation, row workflow rendering, and parameter collection are driven by a single config file.
 - Safe migrations: plan/apply state point migrations and automatically cascade dependency-pointer rewrites downstream, with progress logging.
 
+## Next
+
+- Read `getting-started.md` for an end-to-end walkthrough.
+- Use `cli.md` as a quick command reference.
+- See `migrations.md` for a worked migration example (plan/apply, collisions, resume).
+
 When to use it:
 
 - Use grubicy if you have multi-step experiments, pass results downstream between stages, or want row-ready workflows without writing manual include filters.

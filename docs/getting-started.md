@@ -35,7 +35,7 @@ outputs = ["s2/out.json"]
 [[actions]]
 name = "s3"
 sp_keys = ["p3"]
-deps = { action = "s2" }
+deps = { action = "s2", sp_key = "parent_action" }
 outputs = ["s3/out.json"]
 
 [[experiment]]
@@ -43,7 +43,7 @@ outputs = ["s3/out.json"]
   p1 = 1
   [experiment.s2]
   p2 = 10
-  test = "6"
+  test = true
   [experiment.s3]
   p3 = 0.1
 ```
@@ -56,6 +56,44 @@ Key ideas:
   key will store the parent job id (default `parent_action`).
 - `experiments` hold per-action parameters; missing actions are ignored, extras raise
   a validation error during materialization.
+
+## 1a) Define multiple experiments
+
+In grubicy, an "experiment" is one parameter block that can provide values for one or
+more actions. To define multiple experiments, repeat the block.
+
+In TOML, that means repeating `[[experiment]]`:
+```toml
+[[experiment]]
+  [experiment.s1]
+  p1 = 1
+  [experiment.s2]
+  p2 = 10
+  test = true
+  [experiment.s3]
+  p3 = 0.1
+
+[[experiment]]
+  [experiment.s1]
+  p1 = 1
+  [experiment.s2]
+  p2 = 20
+  test = true
+  [experiment.s3]
+  p3 = 0.1
+```
+
+Notes:
+
+- Experiments can omit actions. If an experiment does not specify parameters for a
+  given action, grubicy treats that action's parameter block as empty for that
+  experiment.
+- Parameter reuse is how you get caching across experiments: if two experiments have
+  the same parameters for an upstream action (and thus the same identity), they will
+  share the same upstream job.
+- Config key name: TOML uses `[[experiment]]` (singular table name). YAML/JSON configs
+  typically use `experiments:` (plural). grubicy accepts both `experiment` and
+  `experiments` at the top level.
 
 ## 1b) Minimal action scripts
 Place action scripts in `actions/`. They receive the job workspace directory from row.
@@ -155,6 +193,9 @@ uv run grubicy migrate-apply pipeline.toml s1 --project .
 
 Plans are written under `.pipeline_migrations/` and execution logs progress so reruns
 can resume.
+
+For a complete worked example (including collisions and resume behavior), see
+`migrations.md`.
 
 ## Example walk-through
 `examples/library-example` contains the same three-stage pipeline expressed with

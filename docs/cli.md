@@ -53,6 +53,14 @@ defaults with `--setdefault key=value`. Writes a plan under `.pipeline_migration
 uv run grubicy migrate-plan pipeline.toml s1 --project . --setdefault b=0
 ```
 
+Notes:
+
+- Collision strategy is a safety check. With the currently supported CLI migration
+  transform (`--setdefault`, which only adds new keys), collisions are not expected.
+- If `config` is TOML, `migrate-plan` also updates the config by adding the defaulted
+  keys to the action's `sp_keys` and to existing experiment blocks for that action.
+  For non-TOML configs, update the spec manually.
+
 ## migrate-apply
 Execute a migration plan and cascade parent pointer rewrites downstream. Respects
 the latest plan unless `--plan` is provided; can resume if interrupted.
@@ -61,3 +69,13 @@ uv run grubicy migrate-apply pipeline.toml s1 --project .
 uv run grubicy migrate-apply pipeline.toml s1 --project . --plan path/to/plan.json
 uv run grubicy migrate-apply pipeline.toml s1 --project . --dry-run
 ```
+
+Notes:
+
+- Default plan selection: if `--plan` is not provided, grubicy uses the latest
+  `.pipeline_migrations/plan_*.json` in the project.
+- `--dry-run` prints the plan JSON and does not modify the workspace.
+- Resume: apply writes progress under `.pipeline_migrations/run_<action>_<stamp>/` and
+  resumes by default. Use `--no-resume` to start fresh.
+
+See `migrations.md` for a worked example.

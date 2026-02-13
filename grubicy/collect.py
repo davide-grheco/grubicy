@@ -2,16 +2,15 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Dict, List, Mapping, Sequence
 
 import signac
 
 from .spec import ActionSpec, WorkflowSpec
+import msgspec
 
 
-@dataclass
-class CollectedRow:
+class CollectedRow(msgspec.Struct):
     """A flattened view of a job and its ancestor parameters/docs."""
 
     data: Dict[str, object]
@@ -98,9 +97,7 @@ class ParamCollector:
         row: Dict[str, object] = {}
 
         for name in chain:
-            part = job_map.get(name)
-            if part is None:
-                continue
+            part = job_map[name]
             action_spec = self._action_map[name]
             for key in action_spec.sp_keys:
                 if key in part.sp:

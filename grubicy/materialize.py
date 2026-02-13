@@ -2,23 +2,23 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from collections import defaultdict
 from pathlib import Path
 from typing import Dict, Iterable, List, Mapping, Optional
 
 import signac
 
 from .spec import ActionSpec, ConfigValidationError, WorkflowSpec
+import msgspec
 
 
-@dataclass
-class MaterializationReport:
+class MaterializationReport(msgspec.Struct):
     """Summary of materialization results."""
 
-    per_action: Dict[str, List[str]] = field(default_factory=dict)
-    created: int = 0
-    total: int = 0
-    dry_run: bool = False
+    per_action: Dict[str, List[str]]
+    created: int
+    total: int
+    dry_run: bool
 
 
 class Materializer:
@@ -149,8 +149,6 @@ class Materializer:
 
     def _record_job(self, action_name: str, job_id: str) -> None:
         self.report.total += 1
-        if action_name not in self.report.per_action:
-            self.report.per_action[action_name] = []
         self.report.per_action[action_name].append(job_id)
 
 

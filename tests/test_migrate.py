@@ -56,10 +56,10 @@ def test_migration_cascades_downstream(tmp_path, monkeypatch):
         sp.setdefault("b", 0)
         return sp
 
-    plan = plan_migration(spec, project, "s1", add_default)
-    report = execute_migration(spec, project, plan)
+    plan, plan_path = plan_migration(spec, project, "s1", add_default)
+    report = execute_migration(spec, project, plan, plan_path=plan_path)
 
-    assert plan.plan_path and plan.plan_path.exists()
+    assert plan_path.exists()
     assert report.updated_actions.get("s1")
 
     new_s1_jobs = list(project.find_jobs({"action": "s1"}))

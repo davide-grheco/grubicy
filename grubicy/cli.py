@@ -113,7 +113,7 @@ def cmd_migrate_plan(args: argparse.Namespace) -> None:
             sp.setdefault(k, v)
         return sp
 
-    plan = plan_migration(
+    plan, plan_path = plan_migration(
         spec,
         project,
         args.action,
@@ -121,7 +121,7 @@ def cmd_migrate_plan(args: argparse.Namespace) -> None:
         collision_strategy=args.collision_strategy,
     )
     _update_config_for_defaults(args.config, args.action, defaults)
-    print(f"Wrote migration plan: {plan.plan_path}")
+    print(f"Wrote migration plan: {plan_path}")
 
 
 def cmd_migrate_execute(args: argparse.Namespace) -> None:
@@ -130,11 +130,13 @@ def cmd_migrate_execute(args: argparse.Namespace) -> None:
     plan_path = _resolve_plan_path(project, args.plan)
     plan = MigrationPlan.from_path(plan_path)
     if getattr(args, "dry_run", False):
-        print(json.dumps(plan.to_dict(), indent=2))
+        print(plan.to_json())
         return
-    report = execute_migration(spec, project, plan, resume=not args.no_resume)
+    report = execute_migration(
+        spec, project, plan, plan_path=plan_path, resume=not args.no_resume
+    )
     if getattr(args, "format", "json") == "json":
-        print(json.dumps(report.__dict__, indent=2, default=str))
+        print(report.to_json())
     else:
         counts = ", ".join(f"{k}:{v}" for k, v in report.updated_actions.items())
         print(f"apply plan {plan_path} updated {{{counts}}}")
@@ -330,3 +332,4 @@ def main(argv: list[str] | None = None) -> None:
 
 if __name__ == "__main__":
     main()
+import msgspec

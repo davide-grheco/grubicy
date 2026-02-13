@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-import json
 import shutil
 from collections import defaultdict
-from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Mapping, Optional
 
+import msgspec
 import signac
 
 from .spec import ConfigValidationError, WorkflowSpec
@@ -25,54 +24,59 @@ class MigrationLockError(Exception):
     """Raised when a migration lock cannot be acquired."""
 
 
-@dataclass
-class MigrationEntry:
+class MigrationEntry(msgspec.Struct):
     old_id: str
     new_id: str
     old_sp: StatePoint
     new_sp: StatePoint
 
-    def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
 
-
-@dataclass
-class MigrationPlan:
+class MigrationPlan(msgspec.Struct):
     action_name: str
     entries: List[MigrationEntry]
-    collisions: List[str] = field(default_factory=list)
-    plan_path: Optional[Path] = None
-
-    def to_dict(self) -> Dict[str, Any]:
-        return asdict(self)
+    collisions: List[str] = msgspec.field(default_factory=list)
 
     @classmethod
-    def from_path(cls, path: str | Path) -> "MigrationPlan":
-        data = json.loads(Path(path).read_text())
-        entries = [            MigrationEntry(**e) for e in data["entries"]
+    def from_path(cls, path: Path) -> "MigrationPlan":
+        return msgspec.json.decode(path.read_bytes(), type=cls)
 
-        ]
-        return cls(
-            action_name=data["action_name"],
-            entries=entries,
-            collisions=data.get("collisions", []),
-            plan_path=Path(path),
-        )
+    def save(self, path: Path) -> None:
+        path.write_bytes(msgspec.json.encode(self))
+
+    def to_json(self) -> str:
+        """Return the plan as a JSON string."""
+
+        return msgspec.json.encode(self).decode("utf-8")
 
 
-@dataclass
-class MigrationReport:
+class MigrationReport(msgspec.Struct):
     action_name: str
     updated_actions: Dict[str, int]
     collisions: List[str]
-    plan_path: Optional[Path]
+    plan_path: Optional[str]
+
+    def to_json(self) -> str:
+        """Return the report as a JSON string."""
+
+        return msgspec.json.encode(self).decode("utf-8")
 
 
-def _run_dir(project: signac.Project, plan: MigrationPlan) -> Path:
+class MigrationProgress(msgspec.Struct):
+    action: str
+    mapping: Dict[str, Dict[str, str]]
+    updated_counts: Dict[str, int]
+    collisions: List[str]
+    done: bool
+    timestamp: str
+
+
+def _run_dir(
+    project: signac.Project, plan: MigrationPlan, plan_path: Optional[Path]
+) -> Path:
     base = Path(project.path) / ".pipeline_migrations"
     stem = (
-        plan.plan_path.stem
-        if plan.plan_path
+        plan_path.stem
+        if plan_path
         else f"plan_{plan.action_name}_{datetime.now(UTC).strftime('%Y%m%dT%H%M%S')}"
     )
     # try to reuse timestamp suffix if present
@@ -85,9 +89,21 @@ def _run_dir(project: signac.Project, plan: MigrationPlan) -> Path:
     return run_dir
 
 
-def _write_progress(run_dir: Path, data: Dict[str, Any]) -> None:
+def _write_progress(run_dir: Path, progress: "MigrationProgress") -> None:
+    run_dir.mkdir(parents=True, exist_ok=True)
     path = run_dir / "progress.json"
-    path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    path.write_bytes(msgspec.json.encode(progress))
+
+
+def _read_progress(path: Path) -> Optional["MigrationProgress"]:
+    try:
+        raw = path.read_bytes()
+    except FileNotFoundError:
+        return None
+    try:
+        return msgspec.json.decode(raw, type=MigrationProgress)
+    except msgspec.DecodeError:
+        return None
 
 
 def _maybe_move_workspace(old_path: Path, new_path: Path) -> None:
@@ -115,7 +131,7 @@ def plan_migration(
     selection: Optional[Mapping[str, Any]] = None,
     collision_strategy: str = "abort",
     plan_path: Optional[Path] = None,
-) -> MigrationPlan:
+) -> tuple[MigrationPlan, Path]:
     """Create a migration plan for a single action.
 
     The plan computes old->new state points and detects collisions before any mutation.
@@ -164,16 +180,12 @@ def plan_migration(
         entries = unique
 
     plan = MigrationPlan(
-        action_name=action_name,
-        entries=entries,
-        collisions=collisions,
-        plan_path=plan_path,
+        action_name=action_name, entries=entries, collisions=collisions
     )
-
     target_path = plan_path or _default_plan_path(project, action_name)
-    target_path.write_text(json.dumps(plan.to_dict(), indent=2), encoding="utf-8")
-    plan.plan_path = target_path
-    return plan
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+    plan.save(target_path)
+    return plan, target_path
 
 
 def _acquire_lock(project: signac.Project) -> Path:
@@ -204,14 +216,16 @@ class MigrationExecutor:
         plan: MigrationPlan,
         run_dir: Path,
         resume: bool,
+        plan_path: Optional[Path],
     ) -> None:
         self.spec = spec
         self.project = project
         self.plan = plan
         self.run_dir = run_dir
+        self.plan_path = plan_path
         self.progress_path = run_dir / "progress.json"
         self.mapping_by_action: Dict[str, Dict[str, str]] = {}
-        self.updated_counts= defaultdict(int)
+        self.updated_counts = defaultdict(int)
         if resume:
             self._load_progress()
 
@@ -229,7 +243,7 @@ class MigrationExecutor:
             action_name=self.plan.action_name,
             updated_actions=self.updated_counts,
             collisions=self.plan.collisions,
-            plan_path=self.plan.plan_path,
+            plan_path=str(self.plan_path) if self.plan_path else None,
         )
 
     def _apply_primary_action(self) -> Dict[str, str]:
@@ -305,34 +319,29 @@ class MigrationExecutor:
         self.updated_counts[action_name] += 1
 
     def _write_progress(self, *, done: bool) -> None:
-        _write_progress(
-            self.run_dir,
-            {
-                "action": self.plan.action_name,
-                "mapping": self.mapping_by_action,
-                "updated_counts": self.updated_counts,
-                "collisions": self.plan.collisions,
-                "done": done,
-                "timestamp": datetime.now(UTC).isoformat(),
-            },
+        progress = MigrationProgress(
+            action=self.plan.action_name,
+            mapping=self.mapping_by_action,
+            updated_counts=dict(self.updated_counts),
+            collisions=self.plan.collisions,
+            done=done,
+            timestamp=datetime.now(UTC).isoformat(),
         )
+        _write_progress(self.run_dir, progress)
 
     def _load_progress(self) -> None:
-        if not self.progress_path.exists():
+        progress = _read_progress(self.progress_path)
+        if progress is None:
             return
-        try:
-            progress = json.loads(self.progress_path.read_text())
-        except json.JSONDecodeError:
-            return
-        self.mapping_by_action = progress.get("mapping", {})
-        self.updated_counts = progress.get("updated_counts", {})
+        self.mapping_by_action = progress.mapping
+        self.updated_counts = progress.updated_counts
 
 
 def execute_migration(
     spec: WorkflowSpec,
     project: signac.Project,
     plan: MigrationPlan,
-    *,
+    plan_path: Optional[Path] = None,
     resume: bool = True,
 ) -> MigrationReport:
     """Execute a migration plan and cascade dependency pointer rewrites.
@@ -346,8 +355,9 @@ def execute_migration(
             spec=spec,
             project=project,
             plan=plan,
-            run_dir=_run_dir(project, plan),
+            run_dir=_run_dir(project, plan, plan_path),
             resume=resume,
+            plan_path=plan_path,
         )
         return executor.run()
     finally:

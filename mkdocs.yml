@@ -1,6 +1,8 @@
 site_name: grubicy
 site_description: Config-driven helpers for signac pipelines with dependencies and migrations
-repo_url: https://example.com/grubicy
+site_url: https://davide-grheco.github.io/grubicy/
+repo_url: https://github.com/davide-grheco/grubicy
+repo_name: davide-grheco/grubicy
 theme:
   name: material
   features:

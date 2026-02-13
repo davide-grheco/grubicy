@@ -1,6 +1,9 @@
 grubicy
 =======
 
+![CI](https://github.com/davide-grheco/grubicy/actions/workflows/ci.yml/badge.svg)
+![Docs](https://github.com/davide-grheco/grubicy/actions/workflows/docs.yml/badge.svg)
+
 grubicy is a small helper library + CLI that layers lightweight dependency management
 on top of signac.
 
@@ -49,7 +52,12 @@ When to use it
 Quick start
 -----------
 
-1) Install (from this repo)
+1) Install
+```bash
+pip install git+https://github.com/davide-grheco/grubicy
+```
+
+For local development:
 ```bash
 uv sync --extra dev
 ```
@@ -109,9 +117,9 @@ This will:
 - store `deps_meta` in job docs (including full parent state points),
 - generate `workflow.toml` for row.
 
-4) Run with row (or any runner that reads the workflow)
+4) Run with row
 ```bash
-row run workflow.toml
+row submit
 ```
 
 5) Collect downstream-ready parameters
@@ -159,6 +167,13 @@ Examples
   (`pipeline.toml`, CLI materialization, row workflow, and helper-based actions).
 
 Documentation
-- `docs/getting-started.md` — walkthrough
-- `docs/cli.md` — CLI reference
-- `docs/migrations.md` — worked migration example
+-------------
+- Hosted docs: https://davide-grheco.github.io/grubicy/
+- Source docs: `docs/getting-started.md` (walkthrough), `docs/cli.md` (CLI reference),
+  `docs/migrations.md` (worked migration example)
+
+Development
+-----------
+- Install dev deps: `uv sync --extra dev`
+- Install hooks: `uv run pre-commit install`
+- Run hooks on all files: `uv run pre-commit run --all-files`

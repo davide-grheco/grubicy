@@ -158,7 +158,7 @@ Notes for actions:
 
 ## 2) Materialize jobs (and optionally render row)
 ```bash
-uv run grubicy prepare pipeline.toml --project . --output workflow.toml
+grubicy prepare pipeline.toml --project . --output workflow.toml
 ```
 
 This validates the config, creates jobs in topological order, stores parent ids under
@@ -169,7 +169,7 @@ workflow file, or call `grubicy materialize ...` directly to only create jobs.
 If you have action scripts under `actions/` that accept the workspace directory, the
 generated workflow works with row out of the box:
 ```bash
-row run workflow.toml
+row submit
 ```
 
 To override the command per action, set `runner = "python actions/custom.py {directory}"`
@@ -178,7 +178,7 @@ in the spec before rendering.
 ## 4) Collect parameters and docs
 Flatten params across the dependency chain (here, for leaf `s3` jobs):
 ```bash
-uv run grubicy collect-params pipeline.toml s3 --format csv > results.csv
+grubicy collect-params pipeline.toml s3 --format csv > results.csv
 ```
 
 Add `--include-doc` to bring along non-reserved document fields. For JSON output,
@@ -187,8 +187,8 @@ drop `--format` or set `--format json`.
 ## 5) Migrate when the schema changes
 Add a default state point key and cascade parent pointers safely:
 ```bash
-uv run grubicy migrate-plan pipeline.toml s1 --project . --setdefault b=0
-uv run grubicy migrate-apply pipeline.toml s1 --project .
+grubicy migrate-plan pipeline.toml s1 --project . --setdefault b=0
+grubicy migrate-apply pipeline.toml s1 --project .
 ```
 
 Plans are written under `.pipeline_migrations/` and execution logs progress so reruns

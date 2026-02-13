@@ -35,7 +35,7 @@ sp_keys = ["p1"]
 
 From the signac project directory:
 ```bash
-uv run grubicy migrate-plan pipeline.toml s1 --project . --setdefault b=0
+grubicy migrate-plan pipeline.toml s1 --project . --setdefault b=0
 ```
 
 This writes a plan under `.pipeline_migrations/` (for example
@@ -54,20 +54,20 @@ If your config is not TOML, you must update it manually.
 
 You can view the plan by running `migrate-apply` in `--dry-run` mode:
 ```bash
-uv run grubicy migrate-apply pipeline.toml s1 --project . --dry-run
+grubicy migrate-apply pipeline.toml s1 --project . --dry-run
 ```
 
 `--dry-run` prints the plan JSON (it does not change the workspace).
 
 To use a specific plan file (instead of the latest one), pass `--plan`:
 ```bash
-uv run grubicy migrate-apply pipeline.toml s1 --project . --plan .pipeline_migrations/plan_s1_YYYYmmddTHHMMSS.json --dry-run
+grubicy migrate-apply pipeline.toml s1 --project . --plan .pipeline_migrations/plan_s1_YYYYmmddTHHMMSS.json --dry-run
 ```
 
 ### 4) Apply the migration
 
 ```bash
-uv run grubicy migrate-apply pipeline.toml s1 --project .
+grubicy migrate-apply pipeline.toml s1 --project .
 ```
 
 What happens during apply:
@@ -81,7 +81,7 @@ What happens during apply:
 
 After applying, it is usually a good idea to regenerate your row workflow:
 ```bash
-uv run grubicy render-row pipeline.toml --output workflow.toml
+grubicy render-row pipeline.toml --output workflow.toml
 ```
 
 ## Collisions
@@ -108,7 +108,7 @@ the lock is stale (e.g. after a crash), remove `.pipeline_lock` and rerun.
 
 - Prefer migrating upstream actions first (roots), then downstream, to keep pointer
   rewrites simple.
-- Run `uv run grubicy status pipeline.toml --project .` after a migration to see which
+- Run `grubicy status pipeline.toml --project .` after a migration to see which
   jobs are missing declared products.
 - Keep `.pipeline_migrations/` in your project directory; it contains the plan and the
   apply progress logs used for audit and resume.

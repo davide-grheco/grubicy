@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import tomllib
+from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
@@ -206,17 +207,21 @@ class WorkflowSpec:
         """
         indegree = {a.name: 0 for a in self.actions}
         children: Dict[str, List[str]] = {a.name: [] for a in self.actions}
+
         for action in self.actions:
             if action.dependency:
                 parent = action.dependency.action
                 indegree[action.name] += 1
                 children[parent].append(action.name)
 
-        queue = [name for name, deg in indegree.items() if deg == 0]
+        queue = deque(name for name, deg in indegree.items() if deg == 0)
+
         ordered: List[str] = []
+
         while queue:
-            current = queue.pop(0)
+            current = queue.popleft()
             ordered.append(current)
+
             for child in children[current]:
                 indegree[child] -= 1
                 if indegree[child] == 0:

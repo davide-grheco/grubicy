@@ -12,3 +12,4 @@ site/
 *.coverage
 grubicy.egg-info/
 .pipeline_migrations/
+.idea/

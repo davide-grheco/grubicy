@@ -56,6 +56,20 @@ def test_materialize_rejects_unknown_params(tmp_path, monkeypatch):
         materialize(spec, project, experiments)
 
 
+def test_materialize_dry_run_does_not_touch_disk(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    project = signac.init_project("test-project")
+    spec = _spec_two_actions()
+
+    report = materialize(spec, project, spec.experiments, dry_run=True)
+
+    assert report.total == 2
+    assert report.created == 0
+
+    s1_job = project.open_job({"action": "s1", "p1": 1})
+    assert not Path(s1_job.path).exists()
+
+
 def test_parent_helpers(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     project = signac.init_project("test-project")

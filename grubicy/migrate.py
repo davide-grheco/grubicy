@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import json
 import shutil
-from dataclasses import dataclass, field
+from collections import defaultdict
+from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Mapping, Optional
@@ -31,6 +32,9 @@ class MigrationEntry:
     old_sp: StatePoint
     new_sp: StatePoint
 
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
 
 @dataclass
 class MigrationPlan:
@@ -40,33 +44,15 @@ class MigrationPlan:
     plan_path: Optional[Path] = None
 
     def to_dict(self) -> Dict[str, Any]:
-        return {
-            "action_name": self.action_name,
-            "entries": [
-                {
-                    "old_id": e.old_id,
-                    "new_id": e.new_id,
-                    "old_sp": e.old_sp,
-                    "new_sp": e.new_sp,
-                }
-                for e in self.entries
-            ],
-            "collisions": self.collisions,
-        }
+        return asdict(self)
 
-    @staticmethod
-    def from_path(path: str | Path) -> "MigrationPlan":
+    @classmethod
+    def from_path(cls, path: str | Path) -> "MigrationPlan":
         data = json.loads(Path(path).read_text())
-        entries = [
-            MigrationEntry(
-                old_id=e["old_id"],
-                new_id=e["new_id"],
-                old_sp=e["old_sp"],
-                new_sp=e["new_sp"],
-            )
-            for e in data["entries"]
+        entries = [            MigrationEntry(**e) for e in data["entries"]
+
         ]
-        return MigrationPlan(
+        return cls(
             action_name=data["action_name"],
             entries=entries,
             collisions=data.get("collisions", []),
@@ -169,14 +155,13 @@ def plan_migration(
         )
 
     if collision_strategy == "keep-first":
-        filtered: List[MigrationEntry] = []
         seen = set()
-        for entry in entries:
-            if entry.new_id in seen:
-                continue
-            seen.add(entry.new_id)
-            filtered.append(entry)
-        entries = filtered
+        unique = []
+        for e in entries:
+            if e.new_id not in seen:
+                seen.add(e.new_id)
+                unique.append(e)
+        entries = unique
 
     plan = MigrationPlan(
         action_name=action_name,
@@ -209,6 +194,140 @@ def _release_lock(lock_path: Path) -> None:
         pass
 
 
+class MigrationExecutor:
+    """Execute a migration plan and cascade dependency pointer rewrites."""
+
+    def __init__(
+        self,
+        spec: WorkflowSpec,
+        project: signac.Project,
+        plan: MigrationPlan,
+        run_dir: Path,
+        resume: bool,
+    ) -> None:
+        self.spec = spec
+        self.project = project
+        self.plan = plan
+        self.run_dir = run_dir
+        self.progress_path = run_dir / "progress.json"
+        self.mapping_by_action: Dict[str, Dict[str, str]] = {}
+        self.updated_counts= defaultdict(int)
+        if resume:
+            self._load_progress()
+
+    def run(self) -> MigrationReport:
+        primary_map = self.mapping_by_action.get(self.plan.action_name, {})
+        if not primary_map:
+            primary_map = self._apply_primary_action()
+            self.mapping_by_action[self.plan.action_name] = primary_map
+            self._write_progress(done=False)
+
+        self._cascade_downstream()
+        self._write_progress(done=True)
+
+        return MigrationReport(
+            action_name=self.plan.action_name,
+            updated_actions=self.updated_counts,
+            collisions=self.plan.collisions,
+            plan_path=self.plan.plan_path,
+        )
+
+    def _apply_primary_action(self) -> Dict[str, str]:
+        primary_map: Dict[str, str] = {}
+        for entry in self.plan.entries:
+            job = self.project.open_job(id=entry.old_id)
+            old_path = Path(job.path)
+            if job.sp == entry.new_sp:
+                primary_map[entry.old_id] = entry.new_id
+                continue
+            job.sp = entry.new_sp
+            new_path = Path(self.project.open_job(entry.new_sp).path)
+            _maybe_move_workspace(old_path, new_path)
+            primary_map[entry.old_id] = entry.new_id
+            self._increment_updated(self.plan.action_name)
+        return primary_map
+
+    def _cascade_downstream(self) -> None:
+        topo = self.spec.topological_actions()
+        downstream_started = False
+        for action in topo:
+            if action.name == self.plan.action_name:
+                downstream_started = True
+                continue
+            if not downstream_started or not action.dependency:
+                continue
+
+            parent_action = action.dependency.action
+            if parent_action not in self.mapping_by_action:
+                continue
+
+            parent_map = self.mapping_by_action[parent_action]
+            current_map: Dict[str, str] = self.mapping_by_action.get(action.name, {})
+
+            for job in self.project.find_jobs({"action": action.name}):
+                dep_key = action.dependency.sp_key
+                parent_id = job.sp.get(dep_key)
+                if parent_id not in parent_map:
+                    continue
+
+                new_parent_id = parent_map[parent_id]
+                old_id = job.id
+                new_sp = dict(job.sp)
+                new_sp[dep_key] = new_parent_id
+                new_sp["action"] = action.name
+                new_job = self.project.open_job(new_sp)
+                if new_job.id == job.id:
+                    continue
+
+                old_path = Path(job.path)
+                job.sp = new_sp
+                new_path = Path(new_job.path)
+                _maybe_move_workspace(old_path, new_path)
+                self._update_deps_meta(job, new_parent_id)
+
+                current_map[old_id] = new_job.id
+                self._increment_updated(action.name)
+
+            if current_map:
+                self.mapping_by_action[action.name] = current_map
+                self._write_progress(done=False)
+
+    def _update_deps_meta(self, job: signac.Job, new_parent_id: str) -> None:
+        parent_job = self.project.open_job(id=new_parent_id)
+        deps_meta = dict(job.doc.get("deps_meta", {}))
+        deps_meta[parent_job.sp.get("action", parent_job.id)] = {
+            "job_id": parent_job.id,
+            "statepoint": dict(parent_job.sp),
+        }
+        job.doc["deps_meta"] = deps_meta
+
+    def _increment_updated(self, action_name: str) -> None:
+        self.updated_counts[action_name] += 1
+
+    def _write_progress(self, *, done: bool) -> None:
+        _write_progress(
+            self.run_dir,
+            {
+                "action": self.plan.action_name,
+                "mapping": self.mapping_by_action,
+                "updated_counts": self.updated_counts,
+                "collisions": self.plan.collisions,
+                "done": done,
+                "timestamp": datetime.now(UTC).isoformat(),
+            },
+        )
+
+    def _load_progress(self) -> None:
+        if not self.progress_path.exists():
+            return
+        try:
+            progress = json.loads(self.progress_path.read_text())
+        except json.JSONDecodeError:
+            return
+        self.mapping_by_action = progress.get("mapping", {})
+        self.updated_counts = progress.get("updated_counts", {})
+
+
 def execute_migration(
     spec: WorkflowSpec,
     project: signac.Project,
@@ -222,125 +341,14 @@ def execute_migration(
     """
 
     lock = _acquire_lock(project)
-    updated_counts: Dict[str, int] = {}
-    run_dir = _run_dir(project, plan)
-    mapping_by_action: Dict[str, Dict[str, str]] = {}
-
-    progress_path = run_dir / "progress.json"
-    if resume and progress_path.exists():
-        try:
-            progress = json.loads(progress_path.read_text())
-            mapping_by_action = progress.get("mapping", {})
-            updated_counts = progress.get("updated_counts", {})
-        except json.JSONDecodeError:
-            mapping_by_action = {}
-            updated_counts = {}
-
     try:
-        # Apply primary action migration
-        primary_map: Dict[str, str] = mapping_by_action.get(plan.action_name, {})
-        if not primary_map:
-            for entry in plan.entries:
-                job = project.open_job(id=entry.old_id)
-                old_path = Path(job.path)
-                if job.sp == entry.new_sp:
-                    primary_map[entry.old_id] = entry.new_id
-                    continue
-                job.sp = entry.new_sp
-                new_path = Path(project.open_job(entry.new_sp).path)
-                _maybe_move_workspace(old_path, new_path)
-                primary_map[entry.old_id] = entry.new_id
-                updated_counts[plan.action_name] = (
-                    updated_counts.get(plan.action_name, 0) + 1
-                )
-            mapping_by_action[plan.action_name] = primary_map
-            _write_progress(
-                run_dir,
-                {
-                    "action": plan.action_name,
-                    "mapping": mapping_by_action,
-                    "updated_counts": updated_counts,
-                    "collisions": plan.collisions,
-                    "done": False,
-                    "timestamp": datetime.now(UTC).isoformat(),
-                },
-            )
-
-        # Cascade to downstream actions
-        topo = spec.topological_actions()
-        downstream_started = False
-        for action in topo:
-            if action.name == plan.action_name:
-                downstream_started = True
-                continue
-            if not downstream_started:
-                continue
-            if not action.dependency:
-                continue
-            parent_action = action.dependency.action
-            if parent_action not in mapping_by_action:
-                continue
-            parent_map = mapping_by_action[parent_action]
-
-            current_map: Dict[str, str] = mapping_by_action.get(action.name, {})
-            for job in project.find_jobs({"action": action.name}):
-                dep_key = action.dependency.sp_key
-                parent_id = job.sp.get(dep_key)
-                if parent_id not in parent_map:
-                    continue
-                new_parent_id = parent_map[parent_id]
-                old_id = job.id
-                old_path = Path(job.path)
-                new_sp = dict(job.sp)
-                new_sp[dep_key] = new_parent_id
-                new_sp["action"] = action.name
-                new_job = project.open_job(new_sp)
-                if new_job.id == job.id:
-                    continue
-                job.sp = new_sp
-                new_path = Path(new_job.path)
-                _maybe_move_workspace(old_path, new_path)
-                # Update deps_meta for the parent
-                parent_job = project.open_job(id=new_parent_id)
-                deps_meta = dict(job.doc.get("deps_meta", {}))
-                deps_meta[parent_job.sp.get("action", parent_job.id)] = {
-                    "job_id": parent_job.id,
-                    "statepoint": dict(parent_job.sp),
-                }
-                job.doc["deps_meta"] = deps_meta
-                current_map[old_id] = new_job.id
-                updated_counts[action.name] = updated_counts.get(action.name, 0) + 1
-            if current_map:
-                mapping_by_action[action.name] = current_map
-                _write_progress(
-                    run_dir,
-                    {
-                        "action": plan.action_name,
-                        "mapping": mapping_by_action,
-                        "updated_counts": updated_counts,
-                        "collisions": plan.collisions,
-                        "done": False,
-                        "timestamp": datetime.now(UTC).isoformat(),
-                    },
-                )
-
-        _write_progress(
-            run_dir,
-            {
-                "action": plan.action_name,
-                "mapping": mapping_by_action,
-                "updated_counts": updated_counts,
-                "collisions": plan.collisions,
-                "done": True,
-                "timestamp": datetime.now(UTC).isoformat(),
-            },
+        executor = MigrationExecutor(
+            spec=spec,
+            project=project,
+            plan=plan,
+            run_dir=_run_dir(project, plan),
+            resume=resume,
         )
-
-        return MigrationReport(
-            action_name=plan.action_name,
-            updated_actions=updated_counts,
-            collisions=plan.collisions,
-            plan_path=plan.plan_path,
-        )
+        return executor.run()
     finally:
         _release_lock(lock)

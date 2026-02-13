@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Mapping, Optional
 
+from filelock import FileLock, Timeout
 import msgspec
 import signac
 
@@ -188,22 +189,16 @@ def plan_migration(
     return plan, target_path
 
 
-def _acquire_lock(project: signac.Project) -> Path:
+def _acquire_lock(project: signac.Project) -> FileLock:
     lock_path = Path(project.path) / ".pipeline_lock"
+    lock = FileLock(lock_path)
     try:
-        lock_path.touch(exist_ok=False)
-    except FileExistsError as exc:
+        lock.acquire(timeout=0)
+    except Timeout as exc:
         raise MigrationLockError(
             "Another migration appears to be running; lock exists"
         ) from exc
-    return lock_path
-
-
-def _release_lock(lock_path: Path) -> None:
-    try:
-        lock_path.unlink()
-    except FileNotFoundError:
-        pass
+    return lock
 
 
 class MigrationExecutor:
@@ -361,4 +356,4 @@ def execute_migration(
         )
         return executor.run()
     finally:
-        _release_lock(lock)
+        lock.release()

@@ -15,10 +15,10 @@ import msgspec
 class MaterializationReport(msgspec.Struct):
     """Summary of materialization results."""
 
-    per_action: Dict[str, List[str]]
-    created: int
-    total: int
-    dry_run: bool
+    per_action: Dict[str, List[str]] = msgspec.field(default_factory=dict)
+    created: int = 0
+    total: int = 0
+    dry_run: bool = False
 
 
 class Materializer:
@@ -149,7 +149,8 @@ class Materializer:
 
     def _record_job(self, action_name: str, job_id: str) -> None:
         self.report.total += 1
-        self.report.per_action[action_name].append(job_id)
+        bucket = self.report.per_action.setdefault(action_name, [])
+        bucket.append(job_id)
 
 
 def materialize(

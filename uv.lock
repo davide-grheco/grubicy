@@ -153,6 +153,7 @@ name = "grubicy"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "filelock" },
     { name = "msgspec" },
     { name = "signac" },
     { name = "tomli-w" },
@@ -172,6 +173,7 @@ docs = [
 
 [package.metadata]
 requires-dist = [
+    { name = "filelock", specifier = ">=3.14" },
     { name = "mkdocs", marker = "extra == 'docs'", specifier = ">=1.6.0" },
     { name = "mkdocs-autorefs", marker = "extra == 'docs'", specifier = ">=1.0.0" },
     { name = "mkdocs-material", marker = "extra == 'docs'", specifier = ">=9.5.0" },

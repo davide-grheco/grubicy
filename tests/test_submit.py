@@ -16,7 +16,9 @@ def test_list_status_parses_output(monkeypatch, tmp_path):
 
     def fake_run(cmd, cwd, capture_output, text, check):
         calls.append((cmd, cwd))
-        return subprocess.CompletedProcess(cmd, 0, stdout="a\n\nb\n", stderr="")
+        return subprocess.CompletedProcess(
+            cmd, 0, stdout="a\n\nb\nNo matches.\n", stderr=""
+        )
 
     monkeypatch.setattr(subprocess, "run", fake_run)
 

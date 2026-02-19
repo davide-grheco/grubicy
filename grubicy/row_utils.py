@@ -9,7 +9,7 @@ from typing import Iterable, List, Sequence, Set
 
 import signac
 
-from .spec import WorkflowSpec
+from grubicy.spec import WorkflowSpec
 
 
 class RowCLIError(RuntimeError):
@@ -36,7 +36,15 @@ def _list_directories_with_status(
 ) -> Set[str]:
     cmd = ["row", "show", "directories", status_flag, "--short", "--action", action]
     result = _run_row(cmd, project_path)
-    return {line.strip() for line in result.stdout.splitlines() if line.strip()}
+    lines = []
+    for line in result.stdout.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if stripped.lower() == "no matches.":
+            continue
+        lines.append(stripped)
+    return set(lines)
 
 
 def _matches_action(name: str, pattern: str | None) -> bool:
@@ -48,7 +56,6 @@ def _matches_action(name: str, pattern: str | None) -> bool:
 def ready_directories(
     spec: WorkflowSpec,
     project: signac.Project,
-    *,
     action_pattern: str | None = None,
 ) -> List[str]:
     """Compute ready directories based on row completion and dependencies.

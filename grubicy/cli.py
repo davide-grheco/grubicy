@@ -15,6 +15,7 @@ from .collect import collect_params_with_parents
 from .materialize import materialize
 from .migrate import MigrationPlan, execute_migration, plan_migration
 from .row_render import render_row_workflow
+from .row_utils import ready_directories, submit_directories
 from .spec import load_spec
 
 
@@ -216,6 +217,42 @@ def cmd_prepare(args: argparse.Namespace) -> None:
     print(msg)
 
 
+def cmd_submit(args: argparse.Namespace) -> None:
+    spec = load_spec(args.config)
+    project = _get_or_init_project(args.project)
+    project_path = Path(project.path)
+
+    action_pattern = args.action
+    ready = ready_directories(spec, project, action_pattern=action_pattern)
+    if args.limit is not None:
+        ready = ready[: args.limit]
+
+    if not ready:
+        print("No ready directories to submit.")
+        return
+
+    if args.dry_run:
+        print("\n".join(ready))
+        print(
+            "row submit"
+            + (f" --action {args.action}" if args.action else "")
+            + (f" -n {args.limit}" if args.limit is not None else "")
+            + " --yes"
+            + (" --dry-run" if args.dry_run else "")
+            + (" " + " ".join(ready))
+        )
+        return
+
+    submit_directories(
+        project_path,
+        ready,
+        action=None if args.action == "*" else args.action,
+        limit=args.limit,
+        dry_run=False,
+    )
+    print(f"Submitted {len(ready)} directories via row.")
+
+
 def _resolve_plan_path(project: signac.Project, provided: str | None) -> Path:
     if provided:
         return Path(provided)
@@ -320,6 +357,26 @@ def build_parser() -> argparse.ArgumentParser:
     p_prepare.add_argument("-o", "--output", default="workflow.toml")
     p_prepare.add_argument("--no-render", action="store_true")
     p_prepare.set_defaults(func=cmd_prepare)
+
+    p_submit = sub.add_parser("submit", help="Submit only eligible jobs via row")
+    p_submit.add_argument("config")
+    p_submit.add_argument(
+        "-p", "--project", help="Path to signac project (defaults to CWD or init)"
+    )
+    p_submit.add_argument(
+        "-a",
+        "--action",
+        default="*",
+        help="Action pattern to submit (default: all)",
+    )
+    p_submit.add_argument(
+        "-n",
+        "--limit",
+        type=int,
+        help="Maximum number of directories to submit",
+    )
+    p_submit.add_argument("--dry-run", action="store_true")
+    p_submit.set_defaults(func=cmd_submit)
 
     return parser
 

@@ -31,6 +31,16 @@ Convenience wrapper: validate + materialize + render-row (unless `--no-render`).
 grubicy prepare pipeline.toml --project . --output workflow.toml
 ```
 
+## submit
+Submit only the directories that row marks as *eligible* (skipping waiting, submitted,
+or completed). Uses `row show directories --eligible --short` to select, then calls
+`row submit` on that subset.
+```bash
+grubicy submit pipeline.toml --project .
+grubicy submit pipeline.toml --project . --action s2 --limit 5
+grubicy submit pipeline.toml --project . --dry-run  # list eligible only
+```
+
 ## status
 Summarize how many jobs exist per action and how many are missing declared products.
 ```bash

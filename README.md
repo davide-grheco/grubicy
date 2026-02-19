@@ -122,6 +122,11 @@ This will:
 row submit
 ```
 
+Or to submit only directories row marks as eligible (no waiting or completed), use the wrapper:
+```bash
+grubicy submit pipeline.toml --project .
+```
+
 5) Collect downstream-ready parameters
 ```bash
 uv run grubicy collect-params pipeline.toml s3 --format csv > results.csv

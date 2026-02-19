@@ -49,3 +49,8 @@ Homepage = "https://github.com/davide-grheco/grubicy"
 Repository = "https://github.com/davide-grheco/grubicy"
 Documentation = "https://davide-grheco.github.io/grubicy/"
 Issues = "https://github.com/davide-grheco/grubicy/issues"
+
+[tool.pytest.ini_options]
+markers = [
+    "integration: marks tests that perform integration with row/signac",
+]

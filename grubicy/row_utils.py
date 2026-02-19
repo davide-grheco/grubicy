@@ -9,6 +9,7 @@ from typing import Iterable, List, Sequence, Set
 
 import signac
 
+from grubicy.helpers import DependencyResolutionError, get_parent
 from grubicy.spec import WorkflowSpec
 
 
@@ -58,10 +59,11 @@ def ready_directories(
     project: signac.Project,
     action_pattern: str | None = None,
 ) -> List[str]:
-    """Compute ready directories based on row completion and dependencies.
+    """Compute ready directories based on row status, eligibility, and dependencies.
 
-    A directory is ready when it is not completed/submitted/waiting and all parents
-    (if any) are completed (as reported by row).
+    A directory is ready when it is not completed/submitted/waiting, all parents (if
+    any) are completed, and (when row reports eligible dirs for the action) it appears
+    in that eligible list.
     """
 
     project_path = Path(project.path)
@@ -70,10 +72,15 @@ def ready_directories(
     completed: Set[str] = set()
     submitted: Set[str] = set()
     waiting: Set[str] = set()
+    eligible_by_action: dict[str, Set[str]] = {}
+
     for name in action_names:
         completed |= _list_directories_with_status(project_path, "--completed", name)
         submitted |= _list_directories_with_status(project_path, "--submitted", name)
         waiting |= _list_directories_with_status(project_path, "--waiting", name)
+        eligible_by_action[name] = _list_directories_with_status(
+            project_path, "--eligible", name
+        )
 
     blocked = completed | submitted | waiting
 
@@ -81,15 +88,19 @@ def ready_directories(
     for action in spec.topological_actions():
         if not _matches_action(action.name, action_pattern):
             continue
+        eligible_set = eligible_by_action.get(action.name, set())
         for job in project.find_jobs({"action": action.name}):
             if job.id in blocked:
                 continue
+            if job.id not in eligible_set:
+                continue
             dep = action.dependency
             if dep:
-                parent_id = job.sp.get(dep.sp_key)
-                if parent_id is None:
+                try:
+                    parent_job = get_parent(job)
+                except DependencyResolutionError:
                     continue
-                if parent_id not in completed:
+                if parent_job.id not in completed:
                     continue
             ready.append(job.id)
 

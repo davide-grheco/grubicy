@@ -165,9 +165,14 @@ This validates the config, creates jobs in topological order, stores parent ids 
 `parent_action`, and writes `workflow.toml` for row. Use `--no-render` to skip the
 workflow file, or call `grubicy materialize ...` directly to only create jobs.
 
-## 3) Run actions with row
-If you have action scripts under `actions/` that accept the workspace directory, the
-generated workflow works with row out of the box:
+## 3) Run actions with grubicy submit (preferred) or row
+If you have action scripts under `actions/` that accept the workspace directory, you can
+submit only ready directories (parents complete, row-eligible, not completed/submitted/waiting):
+```bash
+grubicy submit pipeline.toml --project .
+```
+
+If you want to hand everything to row directly, you can still do (less filtered):
 ```bash
 row submit
 ```

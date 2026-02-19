@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import fnmatch
 import subprocess
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, List, Sequence, Set
+from typing import Iterable, Sequence
 
 import signac
 
@@ -34,7 +35,7 @@ def _run_row(cmd: Sequence[str], cwd: Path) -> subprocess.CompletedProcess[str]:
 
 def _list_directories_with_status(
     project_path: Path, status_flag: str, action: str
-) -> Set[str]:
+) -> set[str]:
     cmd = ["row", "show", "directories", status_flag, "--short", "--action", action]
     result = _run_row(cmd, project_path)
     lines = []
@@ -54,11 +55,64 @@ def _matches_action(name: str, pattern: str | None) -> bool:
     return fnmatch.fnmatch(name, pattern)
 
 
+@dataclass
+class RowStatus:
+    completed: set[str]
+    submitted: set[str]
+    waiting: set[str]
+    eligible_by_action: dict[str, set[str]]
+
+    @property
+    def blocked(self) -> set[str]:
+        return self.completed | self.submitted | self.waiting
+
+
+def _gather_row_status(project_path: Path, action_names: list[str]) -> RowStatus:
+    completed: set[str] = set()
+    submitted: set[str] = set()
+    waiting: set[str] = set()
+    eligible_by_action: dict[str, set[str]] = {}
+
+    for name in action_names:
+        completed |= _list_directories_with_status(project_path, "--completed", name)
+        submitted |= _list_directories_with_status(project_path, "--submitted", name)
+        waiting |= _list_directories_with_status(project_path, "--waiting", name)
+        eligible_by_action[name] = _list_directories_with_status(
+            project_path, "--eligible", name
+        )
+
+    return RowStatus(
+        completed=completed,
+        submitted=submitted,
+        waiting=waiting,
+        eligible_by_action=eligible_by_action,
+    )
+
+
+def _job_is_ready(job: signac.Job, action, status: RowStatus) -> bool:
+    if job.id in status.blocked:
+        return False
+
+    eligible_set = status.eligible_by_action.get(action.name, set())
+    if eligible_set and job.id not in eligible_set:
+        return False
+
+    dep = action.dependency
+    if not dep:
+        return True
+
+    try:
+        parent_job = get_parent(job)
+    except DependencyResolutionError:
+        return False
+    return parent_job.id in status.completed
+
+
 def ready_directories(
     spec: WorkflowSpec,
     project: signac.Project,
     action_pattern: str | None = None,
-) -> List[str]:
+) -> list[str]:
     """Compute ready directories based on row status, eligibility, and dependencies.
 
     A directory is ready when it is not completed/submitted/waiting, all parents (if
@@ -69,40 +123,15 @@ def ready_directories(
     project_path = Path(project.path)
 
     action_names = [a.name for a in spec.actions]
-    completed: Set[str] = set()
-    submitted: Set[str] = set()
-    waiting: Set[str] = set()
-    eligible_by_action: dict[str, Set[str]] = {}
+    status = _gather_row_status(project_path, action_names)
 
-    for name in action_names:
-        completed |= _list_directories_with_status(project_path, "--completed", name)
-        submitted |= _list_directories_with_status(project_path, "--submitted", name)
-        waiting |= _list_directories_with_status(project_path, "--waiting", name)
-        eligible_by_action[name] = _list_directories_with_status(
-            project_path, "--eligible", name
-        )
-
-    blocked = completed | submitted | waiting
-
-    ready: List[str] = []
+    ready: list[str] = []
     for action in spec.topological_actions():
         if not _matches_action(action.name, action_pattern):
             continue
-        eligible_set = eligible_by_action.get(action.name, set())
         for job in project.find_jobs({"action": action.name}):
-            if job.id in blocked:
-                continue
-            if job.id not in eligible_set:
-                continue
-            dep = action.dependency
-            if dep:
-                try:
-                    parent_job = get_parent(job)
-                except DependencyResolutionError:
-                    continue
-                if parent_job.id not in completed:
-                    continue
-            ready.append(job.id)
+            if _job_is_ready(job, action, status):
+                ready.append(job.id)
 
     return ready
 

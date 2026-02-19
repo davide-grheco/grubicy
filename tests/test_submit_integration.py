@@ -150,3 +150,98 @@ def test_submit_only_eligible(tmp_path, monkeypatch):
         if ln and not ln.startswith("row submit")
     ]
     assert set(lines) == s2_expected
+
+    # Dry-run submit without filtering action: should combine ready s1 and s2
+    res_all = subprocess.run(
+        [
+            "python",
+            "-m",
+            "grubicy.cli",
+            "submit",
+            str(pipeline),
+            "-p",
+            str(project_dir),
+            "--dry-run",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert res_all.returncode == 0, res_all.stderr
+    lines_all = [
+        ln
+        for ln in res_all.stdout.splitlines()
+        if ln and not ln.startswith("row submit")
+    ]
+    assert set(lines_all) == s1_pending | s2_expected
+
+
+@pytest.mark.integration
+@pytest.mark.skipif(shutil.which("row") is None, reason="row CLI not available")
+def test_submit_defaults_use_cwd_project(tmp_path):
+    project_dir = tmp_path / "project"
+    project_dir.mkdir()
+    pipeline = project_dir / "pipeline.toml"
+    _write_pipeline(pipeline)
+
+    # prepare without --project (should use cwd) and with config in cwd
+    spec = subprocess.run(
+        [
+            "python",
+            "-m",
+            "grubicy.cli",
+            "prepare",
+            "pipeline.toml",
+        ],
+        cwd=project_dir,
+        capture_output=True,
+        text=True,
+    )
+    if spec.returncode != 0:
+        raise RuntimeError(f"prepare failed: {spec.stderr}")
+
+    project = signac.Project(str(project_dir))
+
+    # Mark one s1 job as completed
+    for job in project.find_jobs({"action": "s1"}):
+        if job.sp["p"] == 1:
+            out = Path(job.path) / "s1" / "out.txt"
+            out.parent.mkdir(parents=True, exist_ok=True)
+            out.write_text("done", encoding="utf-8")
+
+    # Rescan row
+    scan = subprocess.run(
+        ["row", "scan"], cwd=project_dir, capture_output=True, text=True
+    )
+    if scan.returncode != 0:
+        raise RuntimeError(f"row scan failed: {scan.stderr}")
+
+    s1_pending = {
+        job.id for job in project.find_jobs({"action": "s1"}) if job.sp["p"] == 2
+    }
+    s2_expected = set()
+    for job in project.find_jobs({"action": "s2"}):
+        parent_id = job.sp["parent_action"]
+        parent_job = project.open_job(id=parent_id)
+        if (Path(parent_job.path) / "s1" / "out.txt").exists():
+            s2_expected.add(job.id)
+
+    res_all = subprocess.run(
+        [
+            "python",
+            "-m",
+            "grubicy.cli",
+            "submit",
+            "pipeline.toml",
+            "--dry-run",
+        ],
+        cwd=project_dir,
+        capture_output=True,
+        text=True,
+    )
+    assert res_all.returncode == 0, res_all.stderr
+    lines_all = [
+        ln
+        for ln in res_all.stdout.splitlines()
+        if ln and not ln.startswith("row submit")
+    ]
+    assert set(lines_all) == s1_pending | s2_expected

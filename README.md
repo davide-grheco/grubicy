@@ -108,7 +108,7 @@ Defining multiple experiments:
 
 3) Materialize jobs and render a row workflow
 ```bash
-uv run grubicy prepare pipeline.toml --project . --output workflow.toml
+grubicy prepare pipeline.toml --project . --output workflow.toml
 ```
 
 This will:
@@ -117,14 +117,16 @@ This will:
 - store `deps_meta` in job docs (including full parent state points),
 - generate `workflow.toml` for row.
 
-4) Run with row
+4) Run jobs (only ready directories)
 ```bash
-row submit
+grubicy submit pipeline.toml --project .
 ```
+
+If you want to submit everything to row directly, you can still run `row submit`.
 
 5) Collect downstream-ready parameters
 ```bash
-uv run grubicy collect-params pipeline.toml s3 --format csv > results.csv
+grubicy collect-params pipeline.toml s3 --format csv > results.csv
 ```
 
 This flattens the parameter chain for the `s3` stage (and optionally selected doc

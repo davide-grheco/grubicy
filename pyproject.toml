@@ -1,6 +1,6 @@
 [project]
 name = "grubicy"
-version = "1.0.0"
+version = "1.1.0"
 description = "Config-driven helpers for signac workflows with explicit dependencies and migrations"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -49,3 +49,8 @@ Homepage = "https://github.com/davide-grheco/grubicy"
 Repository = "https://github.com/davide-grheco/grubicy"
 Documentation = "https://davide-grheco.github.io/grubicy/"
 Issues = "https://github.com/davide-grheco/grubicy/issues"
+
+[tool.pytest.ini_options]
+markers = [
+    "integration: marks tests that perform integration with row/signac",
+]

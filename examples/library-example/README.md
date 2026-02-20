@@ -18,7 +18,14 @@ Outputs:
 - Jobs for actions s1, s2, s3 with parent pointers in the state points.
 - `workflow.toml` for row execution.
 
-2) Execute actions with row (example):
+2) Submit only ready actions (recommended):
+
+```bash
+grubicy submit pipeline.toml --project . --dry-run   # see what would run
+grubicy submit pipeline.toml --project .             # submit ready dirs only
+```
+
+If you prefer to hand everything to row directly, you can still do:
 
 ```bash
 row run workflow.toml

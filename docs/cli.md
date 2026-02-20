@@ -31,6 +31,23 @@ Convenience wrapper: validate + materialize + render-row (unless `--no-render`).
 grubicy prepare pipeline.toml --project . --output workflow.toml
 ```
 
+## submit
+Submit only directories that are runnable:
+- not completed, submitted, or waiting in row
+- listed by row as eligible for the action (if row reports any eligible dirs)
+- parents (if any) are completed
+
+```bash
+grubicy submit pipeline.toml               # uses CWD project
+grubicy submit pipeline.toml --action s2   # narrow to one action
+grubicy submit pipeline.toml --limit 5     # cap submissions
+grubicy submit pipeline.toml --dry-run     # print directories only
+```
+
+Notes:
+- Requires row available on PATH; uses CWD as the project if `--project` is not given.
+- Dry-run prints the ready directories and the corresponding `row submit` command.
+
 ## status
 Summarize how many jobs exist per action and how many are missing declared products.
 ```bash

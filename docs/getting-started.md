@@ -158,7 +158,7 @@ Notes for actions:
 
 ## 2) Materialize jobs (and optionally render row)
 ```bash
-grubicy prepare pipeline.toml --project . --output workflow.toml
+grubicy prepare pipeline.toml --output workflow.toml
 ```
 
 This validates the config, creates jobs in topological order, stores parent ids under
@@ -169,7 +169,7 @@ workflow file, or call `grubicy materialize ...` directly to only create jobs.
 If you have action scripts under `actions/` that accept the workspace directory, you can
 submit only ready directories (parents complete, row-eligible, not completed/submitted/waiting):
 ```bash
-grubicy submit pipeline.toml --project .
+grubicy submit pipeline.toml
 ```
 
 If you want to hand everything to row directly, you can still do (less filtered):
@@ -192,8 +192,8 @@ drop `--format` or set `--format json`.
 ## 5) Migrate when the schema changes
 Add a default state point key and cascade parent pointers safely:
 ```bash
-grubicy migrate-plan pipeline.toml s1 --project . --setdefault b=0
-grubicy migrate-apply pipeline.toml s1 --project .
+grubicy migrate-plan pipeline.toml s1 --setdefault b=0
+grubicy migrate-apply pipeline.toml s1
 ```
 
 Plans are written under `.pipeline_migrations/` and execution logs progress so reruns

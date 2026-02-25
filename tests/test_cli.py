@@ -151,3 +151,21 @@ def test_cli_materialize_inits_project(tmp_path, monkeypatch):
     # Should be able to open the project now.
     proj = signac.Project.get_project(path=tmp_path)
     assert proj is not None
+
+
+def test_get_or_init_project_does_not_walk_up(tmp_path, monkeypatch):
+    """_get_or_init_project must not find a project in a parent directory."""
+    from grubicy.cli import _get_or_init_project
+
+    # Init a signac project in tmp_path (the parent).
+    signac.init_project(path=str(tmp_path))
+
+    # Change into a subdirectory that has no signac project.
+    subdir = tmp_path / "sub"
+    subdir.mkdir()
+    monkeypatch.chdir(subdir)
+
+    # Old code (signac.get_project()) would have found the parent's project.
+    # The fix should create a new project in CWD instead.
+    project = _get_or_init_project()
+    assert Path(project.path).resolve() == subdir.resolve()

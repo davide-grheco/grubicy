@@ -108,7 +108,7 @@ Defining multiple experiments:
 
 3) Materialize jobs and render a row workflow
 ```bash
-grubicy prepare pipeline.toml --project . --output workflow.toml
+grubicy prepare pipeline.toml --output workflow.toml
 ```
 
 This will:
@@ -119,7 +119,7 @@ This will:
 
 4) Run jobs (only ready directories)
 ```bash
-grubicy submit pipeline.toml --project .
+grubicy submit pipeline.toml
 ```
 
 If you want to submit everything to row directly, you can still run `row submit`.

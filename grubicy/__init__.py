@@ -9,6 +9,7 @@ from .spec import ActionSpec, DependencySpec, WorkspaceSpec, WorkflowSpec, load_
 from .context import WorkflowContext
 from .materialize import MaterializationReport, materialize
 from .helpers import (
+    DependencyResolutionError,
     get_parent,
     open_parent_folder,
     parent_file,
@@ -17,6 +18,14 @@ from .helpers import (
     iter_parent_products,
     open_job_from_directory,
     get_parent_doc,
+)
+from .typed import (
+    WorkflowBindings,
+    load_action_params,
+    dump_action_params,
+    UnknownActionBindingError,
+    ActionParamsNotFoundError,
+    TypedParamsValidationError,
 )
 from .row_render import render_row_workflow
 from .migrate import (
@@ -35,6 +44,7 @@ __all__ = [
     "WorkflowContext",
     "MaterializationReport",
     "materialize",
+    "DependencyResolutionError",
     "get_parent",
     "open_parent_folder",
     "parent_file",
@@ -51,4 +61,11 @@ __all__ = [
     "CollectedRow",
     "collect_params_with_parents",
     "load_spec",
+    # grubicy.typed — opt-in typed parameter bindings
+    "WorkflowBindings",
+    "load_action_params",
+    "dump_action_params",
+    "UnknownActionBindingError",
+    "ActionParamsNotFoundError",
+    "TypedParamsValidationError",
 ]

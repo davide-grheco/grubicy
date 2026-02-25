@@ -1,9 +1,11 @@
 import json
 from pathlib import Path
 
+import pytest
 import signac
 
-from grubicy.helpers import (
+from grubicy import (
+    DependencyResolutionError,
     get_parent,
     get_parent_doc,
     open_job_from_directory,
@@ -34,3 +36,25 @@ def test_job_json_helpers(tmp_path, monkeypatch):
     assert get_parent_doc(child, "missing", default=5) == 5
     assert parent_product_exists(child, "s1/out.json") is True
     assert parent_product_exists(child, "missing.json") is False
+
+
+def test_get_parent_raises_when_no_parent_key(tmp_path, monkeypatch):
+    """get_parent raises DependencyResolutionError when job has no parent_action key."""
+    monkeypatch.chdir(tmp_path)
+    project = signac.init_project("helpers")
+    job = project.open_job({"action": "s1", "p1": 1})
+    job.init()
+
+    with pytest.raises(DependencyResolutionError, match="parent_action"):
+        get_parent(job)
+
+
+def test_get_parent_raises_when_parent_id_is_stale(tmp_path, monkeypatch):
+    """get_parent raises DependencyResolutionError when parent_action ID doesn't exist."""
+    monkeypatch.chdir(tmp_path)
+    project = signac.init_project("helpers")
+    job = project.open_job({"action": "s2", "p2": 9, "parent_action": "deadbeef" * 4})
+    job.init()
+
+    with pytest.raises(DependencyResolutionError, match="deadbeef"):
+        get_parent(job)

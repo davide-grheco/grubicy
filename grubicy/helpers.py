@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Iterator
+from typing import Any, Iterator
 
 import signac
 
@@ -74,18 +74,14 @@ def iter_parent_products(job: signac.Job, pattern: str = "*") -> Iterator[Path]:
 def open_job_from_directory(directory: str) -> signac.Job:
     """Open a job by workspace directory name (as passed by row)."""
     dir_path = Path(directory)
-    if dir_path.exists():
-        base = dir_path
-    else:
-        base = dir_path
     try:
-        project = signac.Project.get_project(path=base, search=True)
+        project = signac.Project.get_project(path=dir_path, search=True)
     except LookupError:
         project = signac.get_project()
     return project.open_job(id=dir_path.name)
 
 
-def get_parent_doc(job: signac.Job, key: str, default=None):
+def get_parent_doc(job: signac.Job, key: str, default: Any = None) -> Any:
     """Return a value from the parent job document, ignoring reserved keys."""
 
     parent = get_parent(job)

@@ -151,7 +151,7 @@ def load_action_params(
         raise TypedParamsValidationError(action, exc.errors()) from exc
 
 
-def dump_action_params(model: Any) -> dict[str, Any]:
+def dump_action_params(model: BaseModel) -> dict[str, Any]:
     """Serialise a validated Pydantic model back to a plain :class:`dict`.
 
     Thin wrapper around :meth:`pydantic.BaseModel.model_dump`.

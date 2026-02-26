@@ -14,8 +14,8 @@ grubicy validate pipeline.toml
 Create jobs for every experiment in the spec. Adds `action` and parent ids to the
 state point and writes parent metadata to `deps_meta` in the job document.
 ```bash
-grubicy materialize pipeline.toml --project .
-grubicy materialize pipeline.toml --project . --dry-run   # compute ids only
+grubicy materialize pipeline.toml
+grubicy materialize pipeline.toml --project /path/to/project --dry-run   # compute ids only
 ```
 
 ## render-row
@@ -28,7 +28,7 @@ grubicy render-row pipeline.toml --output workflow.toml
 ## prepare
 Convenience wrapper: validate + materialize + render-row (unless `--no-render`).
 ```bash
-grubicy prepare pipeline.toml --project . --output workflow.toml
+grubicy prepare pipeline.toml --output workflow.toml
 ```
 
 ## submit
@@ -51,15 +51,15 @@ Notes:
 ## status
 Summarize how many jobs exist per action and how many are missing declared products.
 ```bash
-grubicy status pipeline.toml --project .
-grubicy status pipeline.toml --project . --missing-only
+grubicy status pipeline.toml
+grubicy status pipeline.toml --missing-only
 ```
 
 ## collect-params
 Flatten parameters (and optional doc fields) across the parent chain for the target
 action. Useful for analysis notebooks or exports.
 ```bash
-grubicy collect-params pipeline.toml s3 --project . --format csv
+grubicy collect-params pipeline.toml s3 --format csv
 grubicy collect-params pipeline.toml s3 --include-doc --format json
 ```
 
@@ -67,7 +67,7 @@ grubicy collect-params pipeline.toml s3 --include-doc --format json
 Plan a migration for one action by transforming its state points. Common use: add
 defaults with `--setdefault key=value`. Writes a plan under `.pipeline_migrations/`.
 ```bash
-grubicy migrate-plan pipeline.toml s1 --project . --setdefault b=0
+grubicy migrate-plan pipeline.toml s1 --setdefault b=0
 ```
 
 Notes:
@@ -82,9 +82,9 @@ Notes:
 Execute a migration plan and cascade parent pointer rewrites downstream. Respects
 the latest plan unless `--plan` is provided; can resume if interrupted.
 ```bash
-grubicy migrate-apply pipeline.toml s1 --project .
-grubicy migrate-apply pipeline.toml s1 --project . --plan path/to/plan.json
-grubicy migrate-apply pipeline.toml s1 --project . --dry-run
+grubicy migrate-apply pipeline.toml s1
+grubicy migrate-apply pipeline.toml s1 --plan path/to/plan.json
+grubicy migrate-apply pipeline.toml s1 --dry-run
 ```
 
 Notes:

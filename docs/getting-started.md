@@ -158,7 +158,7 @@ Notes for actions:
 
 ## 2) Materialize jobs (and optionally render row)
 ```bash
-grubicy prepare pipeline.toml --project . --output workflow.toml
+grubicy prepare pipeline.toml --output workflow.toml
 ```
 
 This validates the config, creates jobs in topological order, stores parent ids under
@@ -169,7 +169,7 @@ workflow file, or call `grubicy materialize ...` directly to only create jobs.
 If you have action scripts under `actions/` that accept the workspace directory, you can
 submit only ready directories (parents complete, row-eligible, not completed/submitted/waiting):
 ```bash
-grubicy submit pipeline.toml --project .
+grubicy submit pipeline.toml
 ```
 
 If you want to hand everything to row directly, you can still do (less filtered):
@@ -192,8 +192,8 @@ drop `--format` or set `--format json`.
 ## 5) Migrate when the schema changes
 Add a default state point key and cascade parent pointers safely:
 ```bash
-grubicy migrate-plan pipeline.toml s1 --project . --setdefault b=0
-grubicy migrate-apply pipeline.toml s1 --project .
+grubicy migrate-plan pipeline.toml s1 --setdefault b=0
+grubicy migrate-apply pipeline.toml s1
 ```
 
 Plans are written under `.pipeline_migrations/` and execution logs progress so reruns
@@ -206,3 +206,48 @@ For a complete worked example (including collisions and resume behavior), see
 `examples/library-example` contains the same three-stage pipeline expressed with
 grubicy. Try the sequence above from that directory to see materialization, row
 execution, and result collection end-to-end.
+
+## Typed parameters
+
+grubicy ships an opt-in runtime helper, `grubicy.typed`, that maps state point
+values to validated Pydantic v2 models instead of raw dicts. It is entirely
+runtime-only.
+
+Three calling styles are supported by `load_action_params`:
+
+```python
+from grubicy.typed import WorkflowBindings, load_action_params
+from pydantic import BaseModel
+
+class TrainParams(BaseModel):
+    lr: float
+    n_iter: int
+    alpha: float
+
+# 1) Explicit action + registry (original API)
+bindings = WorkflowBindings().bind("train", TrainParams)
+params = load_action_params(job, "train", bindings)
+
+# 2) Registry only — action inferred from job.sp["action"]
+params = load_action_params(job, bindings)
+
+# 3) Direct model class — no registry needed, action inferred
+params = load_action_params(job, TrainParams)
+```
+
+Notes:
+- If the action cannot be inferred (no `action` key in the state point), an
+  `ActionParamsNotFoundError` is raised.
+- Validation errors are wrapped in `TypedParamsValidationError` with field-prefixed
+  messages (e.g., `train.lr: Input should be greater than 0`).
+- Reserved state point keys (`action`, `parent_action`) are stripped before
+  validation so they never leak into your models.
+
+Advanced usage shown in `examples/typed-params/actions/train.py`:
+- You can split one action across multiple models and load them separately from the
+  same job (e.g., `TrainOptimParams`, `TrainRegularisationParams`).
+- You can load a parent action's params by opening the parent job (via
+  `get_parent(job)`) and passing a model class directly: `load_action_params(parent, PrepareParams)`.
+
+See `examples/typed-params/` for a full, runnable demonstration that uses the inferred
+registry form, direct model-class form, and parent param loading.

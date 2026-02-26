@@ -36,15 +36,11 @@ def cmd_validate(args: argparse.Namespace) -> None:
 
 
 def _get_or_init_project(path: str | None = None) -> signac.Project:
-    if path:
-        try:
-            return signac.Project(path)
-        except LookupError:
-            return signac.init_project(path=path)
+    search_path = path or "."
     try:
-        return signac.get_project()
+        return signac.Project(search_path)
     except LookupError:
-        return signac.init_project()
+        return signac.init_project(path=search_path)
 
 
 def _update_config_for_defaults(

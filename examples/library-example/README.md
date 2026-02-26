@@ -7,11 +7,10 @@ workflow from a single TOML spec.
 
 Run from this directory so the signac project and workspace live here.
 
-1) Materialize jobs and render row workflow via CLI:
+1) Materialize jobs and render row workflow via CLI (single command):
 
 ```bash
-uv run grubicy materialize pipeline.toml --project .
-uv run grubicy render-row pipeline.toml --output workflow.toml
+uv run grubicy prepare pipeline.toml
 ```
 
 Outputs:
@@ -21,8 +20,8 @@ Outputs:
 2) Submit only ready actions (recommended):
 
 ```bash
-grubicy submit pipeline.toml --project . --dry-run   # see what would run
-grubicy submit pipeline.toml --project .             # submit ready dirs only
+grubicy submit pipeline.toml --dry-run   # see what would run
+grubicy submit pipeline.toml             # submit ready dirs only
 ```
 
 If you prefer to hand everything to row directly, you can still do:

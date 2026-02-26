@@ -1,0 +1,58 @@
+[workspace]
+value_file = "signac_statepoint.json"
+
+[[actions]]
+name = "prepare"
+sp_keys = ["n_samples", "noise", "seed"]
+outputs = ["prepare/data.json"]
+
+[[actions]]
+name = "train"
+sp_keys = ["lr", "n_iter", "alpha"]
+deps = { action = "prepare", sp_key = "parent_action" }
+outputs = ["train/model.json"]
+
+[[actions]]
+name = "evaluate"
+sp_keys = ["threshold"]
+deps = { action = "train", sp_key = "parent_action" }
+outputs = ["evaluate/report.json"]
+
+# Experiment 1 — fast convergence
+[[experiment]]
+  [experiment.prepare]
+  n_samples = 200
+  noise = 0.05
+  seed = 42
+  [experiment.train]
+  lr = 0.02
+  n_iter = 200
+  alpha = 0.01
+  [experiment.evaluate]
+  threshold = 0.7
+
+# Experiment 2 — slow learner (fewer iterations, smaller lr)
+[[experiment]]
+  [experiment.prepare]
+  n_samples = 200
+  noise = 0.05
+  seed = 42
+  [experiment.train]
+  lr = 0.002
+  n_iter = 100
+  alpha = 0.01
+  [experiment.evaluate]
+  threshold = 0.7
+
+# Experiment 3 — noisier data, stronger regularisation
+[[experiment]]
+  [experiment.prepare]
+  n_samples = 500
+  noise = 0.2
+  seed = 7
+  [experiment.train]
+  lr = 0.02
+  n_iter = 200
+  alpha = 0.1
+  [experiment.evaluate]
+  threshold = 0.7

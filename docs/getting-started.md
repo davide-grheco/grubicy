@@ -206,3 +206,48 @@ For a complete worked example (including collisions and resume behavior), see
 `examples/library-example` contains the same three-stage pipeline expressed with
 grubicy. Try the sequence above from that directory to see materialization, row
 execution, and result collection end-to-end.
+
+## Typed parameters
+
+grubicy ships an opt-in runtime helper, `grubicy.typed`, that maps state point
+values to validated Pydantic v2 models instead of raw dicts. It is entirely
+runtime-only.
+
+Three calling styles are supported by `load_action_params`:
+
+```python
+from grubicy.typed import WorkflowBindings, load_action_params
+from pydantic import BaseModel
+
+class TrainParams(BaseModel):
+    lr: float
+    n_iter: int
+    alpha: float
+
+# 1) Explicit action + registry (original API)
+bindings = WorkflowBindings().bind("train", TrainParams)
+params = load_action_params(job, "train", bindings)
+
+# 2) Registry only — action inferred from job.sp["action"]
+params = load_action_params(job, bindings)
+
+# 3) Direct model class — no registry needed, action inferred
+params = load_action_params(job, TrainParams)
+```
+
+Notes:
+- If the action cannot be inferred (no `action` key in the state point), an
+  `ActionParamsNotFoundError` is raised.
+- Validation errors are wrapped in `TypedParamsValidationError` with field-prefixed
+  messages (e.g., `train.lr: Input should be greater than 0`).
+- Reserved state point keys (`action`, `parent_action`) are stripped before
+  validation so they never leak into your models.
+
+Advanced usage shown in `examples/typed-params/actions/train.py`:
+- You can split one action across multiple models and load them separately from the
+  same job (e.g., `TrainOptimParams`, `TrainRegularisationParams`).
+- You can load a parent action's params by opening the parent job (via
+  `get_parent(job)`) and passing a model class directly: `load_action_params(parent, PrepareParams)`.
+
+See `examples/typed-params/` for a full, runnable demonstration that uses the inferred
+registry form, direct model-class form, and parent param loading.

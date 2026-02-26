@@ -11,6 +11,7 @@ With one TOML/YAML spec you can:
 - record full parent state points in docs for traceability (`deps_meta`),
 - render row workflows, and
 - migrate existing workspaces with cascading pointer updates without doing it by hand.
+- validate action parameters at runtime with typed Pydantic models.
 
 ## Why use it
 
@@ -38,6 +39,7 @@ What you get:
 - Read `getting-started.md` for an end-to-end walkthrough.
 - Use `cli.md` as a quick command reference.
 - See `migrations.md` for a worked migration example (plan/apply, collisions, resume).
+- Explore `examples/typed-params` for typed parameter loading with Pydantic models.
 
 When to use it:
 

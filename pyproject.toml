@@ -37,6 +37,7 @@ dev = [
     "mkdocs-autorefs>=1.0.0",
     "pre-commit>=3.7",
     "ruff",
+    "mypy>=1.19.1",
 ]
 
 [project.scripts]
@@ -55,3 +56,4 @@ Issues = "https://github.com/davide-grheco/grubicy/issues"
 markers = [
     "integration: marks tests that perform integration with row/signac",
 ]
+

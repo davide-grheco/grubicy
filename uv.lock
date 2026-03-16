@@ -282,7 +282,7 @@ wheels = [
 
 [[package]]
 name = "grubicy"
-version = "1.1.0"
+version = "1.2.0"
 source = { editable = "." }
 dependencies = [
     { name = "filelock" },
@@ -298,15 +298,11 @@ dev = [
     { name = "mkdocs-autorefs" },
     { name = "mkdocs-material" },
     { name = "mkdocstrings", extra = ["python"] },
+    { name = "mypy" },
     { name = "pre-commit" },
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "ruff" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "mypy" },
 ]
 
 [package.metadata]
@@ -317,6 +313,7 @@ requires-dist = [
     { name = "mkdocs-material", marker = "extra == 'dev'", specifier = ">=9.5.0" },
     { name = "mkdocstrings", extras = ["python"], marker = "extra == 'dev'", specifier = ">=0.25.0" },
     { name = "msgspec", specifier = ">=0.18" },
+    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.19.1" },
     { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=3.7" },
     { name = "pydantic", specifier = ">=2.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
@@ -326,9 +323,6 @@ requires-dist = [
     { name = "tomli-w", specifier = ">=1.0" },
 ]
 provides-extras = ["dev"]
-
-[package.metadata.requires-dev]
-dev = [{ name = "mypy", specifier = ">=1.19.1" }]
 
 [[package]]
 name = "identify"

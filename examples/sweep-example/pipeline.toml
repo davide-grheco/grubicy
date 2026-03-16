@@ -1,0 +1,73 @@
+[workspace]
+value_file = "signac_statepoint.json"
+
+[[actions]]
+name = "s1"
+sp_keys = ["p1"]
+outputs = ["s1/out.json"]
+
+[[actions]]
+name = "s2"
+sp_keys = ["p2"]
+deps = { action = "s1", sp_key = "parent_action" }
+outputs = ["s2/out.json"]
+
+[[actions]]
+name = "s3"
+sp_keys = ["p3"]
+deps = { action = "s2", sp_key = "parent_action" }
+outputs = ["s3/out.json"]
+
+# ---------------------------------------------------------------------------
+# Grid space: two named groups expressing a dependent p1/p2 relationship.
+# "low":  p1=1 paired with p2 in {1,2,3,4}  → 4 combos
+# "high": p1=2 paired with p2 in {5,6,7,8}  → 4 combos
+# Total grid space: 8 combos.
+# ---------------------------------------------------------------------------
+
+[[grid]]
+name = "low"
+  [grid.s1]
+  p1 = [1]
+  [grid.s2]
+  p2 = [1, 2, 3, 4]
+
+[[grid]]
+name = "high"
+  [grid.s1]
+  p1 = [2]
+  [grid.s2]
+  p2 = [5, 6, 7, 8]
+
+# ---------------------------------------------------------------------------
+# Experiments: each is crossed with (a subset of) the grid space.
+#
+# exp A — all 8 grid combos × p3=0.1  →  8 jobs
+# exp B — all 8 grid combos × p3=0.2  →  8 jobs
+# exp C — only "low" (4 combos) × p3=0.3  →  4 jobs
+# exp D — standalone (no grids), fixed p1/p2/p3  →  1 job
+#
+# Total: 21 jobs for s3 (plus the shared upstream s1/s2 jobs).
+# ---------------------------------------------------------------------------
+
+[[experiment]]
+  [experiment.s3]
+  p3 = 0.1
+
+[[experiment]]
+  [experiment.s3]
+  p3 = 0.2
+
+[[experiment]]
+grids = ["low"]
+  [experiment.s3]
+  p3 = 0.3
+
+[[experiment]]
+grids = []
+  [experiment.s1]
+  p1 = 0
+  [experiment.s2]
+  p2 = 0
+  [experiment.s3]
+  p3 = 0.0

@@ -102,7 +102,7 @@ def _job_is_ready(job: signac.Job, action, status: RowStatus) -> bool:
         return True
 
     try:
-        parent_job = get_parent(job)
+        parent_job = get_parent(job, dep.sp_key)
     except DependencyResolutionError:
         return False
     return parent_job.id in status.completed

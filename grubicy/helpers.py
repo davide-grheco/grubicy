@@ -24,8 +24,17 @@ def write_dependency_metadata(job: signac.Job, parent_job: signac.Job) -> None:
     job.doc["deps_meta"] = deps_meta
 
 
-def get_parent(job: signac.Job) -> signac.Job:
-    """Return the parent job referenced by ``parent_action`` in the state point.
+def get_parent(job: signac.Job, sp_key: str = DEFAULT_PARENT_SP_KEY) -> signac.Job:
+    """Return the parent job referenced by *sp_key* in the state point.
+
+    Parameters
+    ----------
+    job
+        The child job whose parent should be resolved.
+    sp_key
+        State-point key that holds the parent job ID.  Defaults to
+        ``DEFAULT_PARENT_SP_KEY`` (``"parent_action"``); pass
+        ``action.dep_sp_key`` when using a custom dependency key.
 
     Raises
     ------
@@ -33,10 +42,9 @@ def get_parent(job: signac.Job) -> signac.Job:
         If the job does not declare a parent or the referenced job cannot be opened.
     """
 
-    key = DEFAULT_PARENT_SP_KEY
-    if key not in job.sp:
-        raise DependencyResolutionError(f"Job {job.id} has no '{key}' state point key")
-    parent_id = job.sp[key]
+    if sp_key not in job.sp:
+        raise DependencyResolutionError(f"Job {job.id} has no '{sp_key}' state point key")
+    parent_id = job.sp[sp_key]
     project = job.project
     try:
         return project.open_job(id=str(parent_id))

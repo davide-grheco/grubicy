@@ -49,6 +49,19 @@ def test_get_parent_raises_when_no_parent_key(tmp_path, monkeypatch):
         get_parent(job)
 
 
+def test_get_parent_with_custom_sp_key(tmp_path, monkeypatch):
+    """get_parent resolves a parent stored under a non-default SP key."""
+    monkeypatch.chdir(tmp_path)
+    project = signac.init_project("helpers")
+
+    parent = project.open_job({"action": "s1", "p1": 1})
+    parent.init()
+    child = project.open_job({"action": "s2", "p2": 3, "parent_train": parent.id})
+    child.init()
+
+    assert get_parent(child, sp_key="parent_train").id == parent.id
+
+
 def test_get_parent_raises_when_parent_id_is_stale(tmp_path, monkeypatch):
     """get_parent raises DependencyResolutionError when parent_action ID doesn't exist."""
     monkeypatch.chdir(tmp_path)

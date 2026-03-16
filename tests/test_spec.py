@@ -1,6 +1,6 @@
 import pytest
 
-from grubicy.spec import ConfigValidationError, WorkflowSpec
+from grubicy.spec import ActionSpec, ConfigValidationError, DependencySpec, WorkflowSpec
 
 
 def test_topological_order_and_experiments():
@@ -177,6 +177,17 @@ def test_experiment_unknown_action_raises():
                 "experiment": [{"ghost": {"p1": 1}}],
             }
         )
+
+
+def test_dep_sp_key_returns_custom_key():
+    dep = DependencySpec(action="s1", sp_key="parent_train")
+    action = ActionSpec(name="s2", sp_keys=["p2"], dependency=dep)
+    assert action.dep_sp_key == "parent_train"
+
+
+def test_dep_sp_key_returns_default_for_root_action():
+    action = ActionSpec(name="s1", sp_keys=["p1"])
+    assert action.dep_sp_key == "parent_action"
 
 
 def test_cycle_detection_raises():

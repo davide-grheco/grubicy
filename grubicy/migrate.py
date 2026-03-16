@@ -12,6 +12,7 @@ from filelock import FileLock, Timeout
 import msgspec
 import signac
 
+from .helpers import write_dependency_metadata
 from .spec import ConfigValidationError, WorkflowSpec
 
 StatePoint = Dict[str, Any]
@@ -303,12 +304,7 @@ class MigrationExecutor:
 
     def _update_deps_meta(self, job: signac.Job, new_parent_id: str) -> None:
         parent_job = self.project.open_job(id=new_parent_id)
-        deps_meta = dict(job.doc.get("deps_meta", {}))
-        deps_meta[parent_job.sp.get("action", parent_job.id)] = {
-            "job_id": parent_job.id,
-            "statepoint": dict(parent_job.sp),
-        }
-        job.doc["deps_meta"] = deps_meta
+        write_dependency_metadata(job, parent_job)
 
     def _increment_updated(self, action_name: str) -> None:
         self.updated_counts[action_name] += 1

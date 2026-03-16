@@ -8,9 +8,10 @@ from pydantic import BaseModel, ValidationError
 
 from .bindings import WorkflowBindings
 from .errors import ActionParamsNotFoundError, TypedParamsValidationError
+from grubicy.spec import ACTION_SP_KEY, DEFAULT_PARENT_SP_KEY
 
 # Keys injected by grubicy's materialiser that are not user-defined params.
-_RESERVED_SP_KEYS: frozenset[str] = frozenset({"action", "parent_action"})
+_RESERVED_SP_KEYS: frozenset[str] = frozenset({ACTION_SP_KEY, DEFAULT_PARENT_SP_KEY})
 
 
 def _extract_action_raw_params(job: Any, action: str) -> dict[str, Any]:

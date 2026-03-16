@@ -6,7 +6,7 @@ from typing import Dict, List, Mapping, Sequence
 
 import signac
 
-from .spec import ActionSpec, WorkflowSpec
+from .spec import ActionSpec, DEFAULT_PARENT_SP_KEY, WorkflowSpec
 import msgspec
 
 
@@ -77,7 +77,7 @@ class ParamCollector:
             dep_key = (
                 child_spec.dependency.sp_key
                 if child_spec.dependency
-                else "parent_action"
+                else DEFAULT_PARENT_SP_KEY
             )
             child_job = job_map[child_name]
             parent_id = child_job.sp.get(dep_key)

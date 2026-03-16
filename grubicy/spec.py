@@ -14,6 +14,11 @@ class ConfigValidationError(Exception):
     """Raised when a configuration file fails validation."""
 
 
+# Reserved state-point keys managed by the framework
+ACTION_SP_KEY: str = "action"
+DEFAULT_PARENT_SP_KEY: str = "parent_action"
+
+
 @dataclass(frozen=True)
 class DependencySpec:
     """Represents a single parent dependency for an action.
@@ -27,7 +32,7 @@ class DependencySpec:
     """
 
     action: str
-    sp_key: str = "parent_action"
+    sp_key: str = DEFAULT_PARENT_SP_KEY
 
 
 @dataclass(frozen=True)
@@ -81,7 +86,7 @@ class ActionSpec:
                 raise ConfigValidationError(
                     "deps.action is required when specifying a dependency"
                 )
-            sp_key = raw_dep.get("sp_key", "parent_action")
+            sp_key = raw_dep.get("sp_key", DEFAULT_PARENT_SP_KEY)
             dependency = DependencySpec(action=str(dep_action), sp_key=str(sp_key))
 
         return ActionSpec(

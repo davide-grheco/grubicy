@@ -95,7 +95,94 @@ Notes:
   typically use `experiments:` (plural). grubicy accepts both `experiment` and
   `experiments` at the top level.
 
-## 1b) Minimal action scripts
+## 1b) Using grids
+
+Writing out every combination of parameters by hand gets tedious fast. A **grid**
+defines a reusable parameter base — a set of action params that get crossed with every
+experiment you add.
+
+### Defining grids
+
+Within a `[[grid]]` block, **list-valued keys are swept** (Cartesian product within
+the action) and **scalar keys are fixed**. Combinations across actions are also crossed:
+
+```toml
+[[grid]]
+name = "main"
+  [grid.s1]
+  p1 = [1, 2]      # swept: 2 values
+
+  [grid.s2]
+  p2 = [10, 20]    # swept: 2 values
+  seed = 42        # fixed: appears in all generated combos
+```
+
+Multiple `[[grid]]` blocks are independent. Their expansions are **concatenated** into
+the grid space (not crossed with each other). Use this to express dependent groups:
+
+```toml
+[[grid]]
+name = "low"
+  [grid.s1]
+  p1 = [1]
+  [grid.s2]
+  p2 = [1, 2, 3, 4]
+
+[[grid]]
+name = "high"
+  [grid.s1]
+  p1 = [2]
+  [grid.s2]
+  p2 = [5, 6, 7, 8]
+```
+
+### Crossing grids with experiments
+
+Experiments define variations that get **crossed against the grid space**. The total
+number of jobs is `grid_combos × experiments`:
+
+```toml
+# 8 grid combos (4 from "low", 4 from "high")
+
+[[experiment]]                        # crossed with all 8 combos → 8 jobs
+  [experiment.s3]
+  p3 = 0.1
+
+[[experiment]]                        # crossed with all 8 combos → 8 more jobs
+  [experiment.s3]
+  p3 = 0.2
+```
+
+Each resulting job merges grid params (s1, s2) with experiment params (s3). If an
+experiment defines a key also present in the grid, the experiment value takes
+precedence.
+
+### Selecting which grids an experiment applies to
+
+By default an experiment is crossed with **all** defined grids. Add a `grids` key to
+select only specific ones by name:
+
+```toml
+[[experiment]]                         # uses both "low" and "high" → 8 jobs
+  [experiment.s3]
+  p3 = 0.1
+
+[[experiment]]                         # uses only "low" → 4 jobs
+grids = ["low"]
+  [experiment.s3]
+  p3 = 0.2
+
+[[experiment]]                         # standalone: no grids applied → 1 job
+grids = []
+  [experiment.s1]
+  p1 = 99
+  [experiment.s3]
+  p3 = 0.5
+```
+
+A full runnable example lives in `examples/grid-example/`.
+
+## 1c) Minimal action scripts
 Place action scripts in `actions/`. They receive the job workspace directory from row.
 
 Root action (no parent):

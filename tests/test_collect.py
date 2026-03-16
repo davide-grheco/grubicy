@@ -1,6 +1,7 @@
 import pytest
 import signac
 
+from grubicy import DependencyResolutionError
 from grubicy.collect import collect_params_with_parents
 from grubicy.materialize import materialize
 from grubicy.spec import WorkflowSpec
@@ -56,7 +57,7 @@ def test_collect_raises_when_parent_missing(tmp_path, monkeypatch):
     job = project.open_job({"action": "s2", "p2": 2})
     job.init()
 
-    with pytest.raises(LookupError):
+    with pytest.raises(DependencyResolutionError):
         collect_params_with_parents(spec, project, "s2", include_doc=False)
 
 

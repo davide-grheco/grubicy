@@ -6,7 +6,8 @@ from typing import Dict, List, Mapping, Sequence
 
 import signac
 
-from .spec import ActionSpec, DEFAULT_PARENT_SP_KEY, WorkflowSpec
+from .helpers import DependencyResolutionError
+from .spec import ActionSpec, WorkflowSpec
 import msgspec
 
 
@@ -16,7 +17,7 @@ class CollectedRow(msgspec.Struct):
     data: Dict[str, object]
 
 
-_RESERVED_DOC_KEYS = {"deps_meta", "pipeline", "pipeline_meta"}
+RESERVED_DOC_KEYS: frozenset[str] = frozenset({"deps_meta", "pipeline", "pipeline_meta"})
 
 
 class ParamCollector:
@@ -45,7 +46,7 @@ class ParamCollector:
             if job_map is None:
                 if self.missing_ok:
                     continue
-                raise LookupError(
+                raise DependencyResolutionError(
                     f"Missing parent for job {leaf.id} when collecting {target_action}"
                 )
 
@@ -74,11 +75,7 @@ class ParamCollector:
             child_name = chain[idx]
             parent_name = chain[idx - 1]
             child_spec = self._action_map[child_name]
-            dep_key = (
-                child_spec.dependency.sp_key
-                if child_spec.dependency
-                else DEFAULT_PARENT_SP_KEY
-            )
+            dep_key = child_spec.dep_sp_key
             child_job = job_map[child_name]
             parent_id = child_job.sp.get(dep_key)
             if parent_id is None:
@@ -104,7 +101,7 @@ class ParamCollector:
                     row[f"{name}.{key}"] = part.sp[key]
             if self.include_doc:
                 for dkey, dval in part.doc.items():
-                    if dkey in _RESERVED_DOC_KEYS:
+                    if dkey in RESERVED_DOC_KEYS:
                         continue
                     row[f"{name}.doc.{dkey}"] = dval
 

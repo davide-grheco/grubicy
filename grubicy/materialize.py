@@ -7,6 +7,7 @@ from typing import Dict, Iterable, List, Mapping, Optional
 
 import signac
 
+from .helpers import write_dependency_metadata
 from .spec import ActionSpec, ConfigValidationError, WorkflowSpec
 import msgspec
 
@@ -83,7 +84,7 @@ class Materializer:
 
             created = self._init_job(job)
             if parent_job:
-                self._write_dependency_metadata(job, parent_job)
+                write_dependency_metadata(job, parent_job)
 
             parent_jobs[action.name] = job
             if created:
@@ -119,15 +120,6 @@ class Materializer:
         created = not Path(job.path).exists()
         job.init()
         return created
-
-    @staticmethod
-    def _write_dependency_metadata(job: signac.Job, parent_job: signac.Job) -> None:
-        deps_meta = dict(job.doc.get("deps_meta", {}))
-        deps_meta[parent_job.sp.get("action", parent_job.id)] = {
-            "job_id": parent_job.id,
-            "statepoint": dict(parent_job.sp),
-        }
-        job.doc["deps_meta"] = deps_meta
 
     def _resolve_parent(
         self,

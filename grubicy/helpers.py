@@ -7,9 +7,21 @@ from typing import Any, Iterator
 
 import signac
 
+from .spec import ACTION_SP_KEY, DEFAULT_PARENT_SP_KEY
+
 
 class DependencyResolutionError(Exception):
     """Raised when a job's parent cannot be resolved."""
+
+
+def write_dependency_metadata(job: signac.Job, parent_job: signac.Job) -> None:
+    """Update ``job.doc['deps_meta']`` with parent job info."""
+    deps_meta = dict(job.doc.get("deps_meta", {}))
+    deps_meta[parent_job.sp.get(ACTION_SP_KEY, parent_job.id)] = {
+        "job_id": parent_job.id,
+        "statepoint": dict(parent_job.sp),
+    }
+    job.doc["deps_meta"] = deps_meta
 
 
 def get_parent(job: signac.Job) -> signac.Job:
@@ -21,7 +33,7 @@ def get_parent(job: signac.Job) -> signac.Job:
         If the job does not declare a parent or the referenced job cannot be opened.
     """
 
-    key = "parent_action"
+    key = DEFAULT_PARENT_SP_KEY
     if key not in job.sp:
         raise DependencyResolutionError(f"Job {job.id} has no '{key}' state point key")
     parent_id = job.sp[key]

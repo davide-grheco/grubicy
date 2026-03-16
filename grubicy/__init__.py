@@ -34,7 +34,7 @@ from .migrate import (
     execute_migration,
     plan_migration,
 )
-from .collect import CollectedRow, collect_params_with_parents
+from .collect import CollectedRow, RESERVED_DOC_KEYS, collect_params_with_parents
 
 __all__ = [
     "ActionSpec",
@@ -59,6 +59,7 @@ __all__ = [
     "plan_migration",
     "execute_migration",
     "CollectedRow",
+    "RESERVED_DOC_KEYS",
     "collect_params_with_parents",
     "load_spec",
     # grubicy.typed — opt-in typed parameter bindings

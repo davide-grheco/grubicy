@@ -45,6 +45,11 @@ class ActionSpec:
     outputs: List[str] | None = None
     runner: Optional[str] = None
 
+    @property
+    def dep_sp_key(self) -> str:
+        """SP key used to store this action's parent job ID."""
+        return self.dependency.sp_key if self.dependency else DEFAULT_PARENT_SP_KEY
+
     @staticmethod
     def from_mapping(data: Dict[str, Any]) -> "ActionSpec":
         """Create an :class:`ActionSpec` from a mapping.

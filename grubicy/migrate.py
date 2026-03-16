@@ -275,7 +275,7 @@ class MigrationExecutor:
             current_map: Dict[str, str] = self.mapping_by_action.get(action.name, {})
 
             for job in self.project.find_jobs({"action": action.name}):
-                dep_key = action.dependency.sp_key
+                dep_key = action.dep_sp_key
                 parent_id = job.sp.get(dep_key)
                 if parent_id not in parent_map:
                     continue

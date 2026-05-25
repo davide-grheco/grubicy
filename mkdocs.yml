@@ -32,5 +32,6 @@ nav:
   - Home: index.md
   - Getting Started: getting-started.md
   - CLI: cli.md
+  - HPC / SLURM: hpc.md
   - Migrations: migrations.md
   - API: api.md

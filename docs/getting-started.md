@@ -274,6 +274,11 @@ row submit
 To override the command for a specific action, set
 `runner = "python actions/custom.py {directory}"` in the spec before rendering.
 
+> **Running on a cluster?** Add `[row.default.action.resources]` and
+> `[row.default.action.submit_options.<cluster>]` to your `pipeline.toml` so that
+> `grubicy prepare` generates a ready-to-submit `workflow.toml` — no hand-editing
+> needed.  See [HPC / SLURM](hpc.md) for a full example.
+
 ## 4) Collect parameters and docs
 Flatten params across the dependency chain (here, for leaf `s3` jobs):
 ```bash
@@ -300,8 +305,9 @@ For a complete worked example (including collisions and resume behavior), see
 
 ## Example walk-through
 `examples/library-example` contains the same three-stage pipeline expressed with
-grubicy. Run `grubicy prepare` from that directory to see materialization, row
-execution, and result collection end-to-end.
+grubicy, including annotated `[row.default.action]` and per-action `resources` /
+`group` config.  Run `grubicy prepare` from that directory to see a fully populated
+`workflow.toml` generated from the spec.
 
 ## Typed parameters
 

@@ -18,6 +18,44 @@ from .row_render import render_row_workflow
 from .row_utils import ready_directories, submit_directories
 from .spec import load_spec
 
+#: Candidate file names searched in order when auto-detecting the config.
+_CONFIG_CANDIDATES = ("pipeline.toml", "pipeline.yaml", "pipeline.yml")
+
+
+def _find_config(start: Path | None = None) -> Path | None:
+    """Walk from *start* (default: CWD) toward the filesystem root and return
+    the first ``pipeline.toml`` / ``pipeline.yaml`` / ``pipeline.yml`` found,
+    or ``None`` if no file exists anywhere in the search path."""
+    directory = (start or Path.cwd()).resolve()
+    while True:
+        for name in _CONFIG_CANDIDATES:
+            candidate = directory / name
+            if candidate.is_file():
+                return candidate
+        parent = directory.parent
+        if parent == directory:
+            # Reached filesystem root without finding anything.
+            return None
+        directory = parent
+
+
+def _resolve_config(args: argparse.Namespace) -> str:
+    """Return ``args.config`` when provided, otherwise auto-detect.
+
+    Raises :class:`SystemExit` with a descriptive message when no config can
+    be found.
+    """
+    if args.config:
+        return args.config
+    found = _find_config()
+    if found is None:
+        candidates = ", ".join(_CONFIG_CANDIDATES)
+        raise SystemExit(
+            f"No config file found. Searched for {candidates} from {Path.cwd()} "
+            "upward. Pass an explicit path as the first argument."
+        )
+    return str(found)
+
 
 def _parse_key_values(items: list[str]) -> Dict[str, str]:
     result: Dict[str, str] = {}
@@ -30,9 +68,10 @@ def _parse_key_values(items: list[str]) -> Dict[str, str]:
 
 
 def cmd_validate(args: argparse.Namespace) -> None:
-    spec = load_spec(args.config)
+    config = _resolve_config(args)
+    spec = load_spec(config)
     _ = spec.topological_actions()
-    print(f"Validated config: {args.config}")
+    print(f"Validated config: {config}")
 
 
 def _get_or_init_project(path: str | None = None) -> signac.Project:
@@ -83,7 +122,7 @@ def _update_config_for_defaults(
 
 
 def cmd_materialize(args: argparse.Namespace) -> None:
-    spec = load_spec(args.config)
+    spec = load_spec(_resolve_config(args))
     project = _get_or_init_project(args.project)
     report = materialize(spec, project, spec.experiments, dry_run=args.dry_run)
     if getattr(args, "format", "json") == "json":
@@ -94,13 +133,14 @@ def cmd_materialize(args: argparse.Namespace) -> None:
 
 
 def cmd_render_row(args: argparse.Namespace) -> None:
-    spec = load_spec(args.config)
+    spec = load_spec(_resolve_config(args))
     out = render_row_workflow(spec, args.output)
     print(f"Wrote row workflow to {out}")
 
 
 def cmd_migrate_plan(args: argparse.Namespace) -> None:
-    spec = load_spec(args.config)
+    config = _resolve_config(args)
+    spec = load_spec(config)
     project = _get_or_init_project(args.project)
     defaults = _parse_key_values(args.setdefault)
 
@@ -117,12 +157,12 @@ def cmd_migrate_plan(args: argparse.Namespace) -> None:
         transform,
         collision_strategy=args.collision_strategy,
     )
-    _update_config_for_defaults(args.config, args.action, defaults)
+    _update_config_for_defaults(config, args.action, defaults)
     print(f"Wrote migration plan: {plan_path}")
 
 
 def cmd_migrate_execute(args: argparse.Namespace) -> None:
-    spec = load_spec(args.config)
+    spec = load_spec(_resolve_config(args))
     project = _get_or_init_project(args.project)
     plan_path = _resolve_plan_path(project, args.plan)
     plan = MigrationPlan.from_path(plan_path)
@@ -140,7 +180,7 @@ def cmd_migrate_execute(args: argparse.Namespace) -> None:
 
 
 def cmd_status(args: argparse.Namespace) -> None:
-    spec = load_spec(args.config)
+    spec = load_spec(_resolve_config(args))
     project = _get_or_init_project(args.project)
     summary = {}
     for action in spec.actions:
@@ -165,7 +205,7 @@ def cmd_status(args: argparse.Namespace) -> None:
 
 
 def cmd_collect_params(args: argparse.Namespace) -> None:
-    spec = load_spec(args.config)
+    spec = load_spec(_resolve_config(args))
     project = _get_or_init_project(args.project)
     rows = collect_params_with_parents(
         spec,
@@ -201,7 +241,7 @@ def cmd_collect_params(args: argparse.Namespace) -> None:
 
 
 def cmd_prepare(args: argparse.Namespace) -> None:
-    spec = load_spec(args.config)
+    spec = load_spec(_resolve_config(args))
     project = _get_or_init_project(args.project)
     materialize(spec, project, spec.experiments, dry_run=False)
     out = None
@@ -214,7 +254,7 @@ def cmd_prepare(args: argparse.Namespace) -> None:
 
 
 def cmd_submit(args: argparse.Namespace) -> None:
-    spec = load_spec(args.config)
+    spec = load_spec(_resolve_config(args))
     project = _get_or_init_project(args.project)
     project_path = Path(project.path)
 
@@ -262,12 +302,21 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="grubicy", description="grubicy CLI")
     sub = parser.add_subparsers(dest="command", required=True)
 
+    _config_help = (
+        "Path to pipeline config (TOML or YAML). "
+        "Auto-detected from CWD upward when omitted."
+    )
+
     p_val = sub.add_parser("validate", help="Validate a config")
-    p_val.add_argument("config")
+    p_val.add_argument(
+        "config", nargs="?", default=None, metavar="CONFIG", help=_config_help
+    )
     p_val.set_defaults(func=cmd_validate)
 
     p_mat = sub.add_parser("materialize", help="Materialize jobs")
-    p_mat.add_argument("config")
+    p_mat.add_argument(
+        "config", nargs="?", default=None, metavar="CONFIG", help=_config_help
+    )
     p_mat.add_argument(
         "-p", "--project", help="Path to signac project (defaults to CWD)"
     )
@@ -276,15 +325,17 @@ def build_parser() -> argparse.ArgumentParser:
     p_mat.set_defaults(func=cmd_materialize)
 
     p_row = sub.add_parser("render-row", help="Render row workflow")
-    p_row.add_argument("config")
+    p_row.add_argument(
+        "config", nargs="?", default=None, metavar="CONFIG", help=_config_help
+    )
     p_row.add_argument("-o", "--output", default="workflow.toml")
     p_row.set_defaults(func=cmd_render_row)
 
     p_plan = sub.add_parser(
         "migrate-plan", help="Create a migration plan with setdefault"
     )
-    p_plan.add_argument("config")
     p_plan.add_argument("action")
+    p_plan.add_argument("-c", "--config", default=None, dest="config", help=_config_help)
     p_plan.add_argument(
         "-p", "--project", help="Path to signac project (defaults to CWD or init)"
     )
@@ -299,8 +350,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_plan.set_defaults(func=cmd_migrate_plan)
 
     p_exec = sub.add_parser("migrate-apply", help="Execute a migration plan")
-    p_exec.add_argument("config")
     p_exec.add_argument("action")
+    p_exec.add_argument("-c", "--config", default=None, dest="config", help=_config_help)
     p_exec.add_argument(
         "-p", "--project", help="Path to signac project (defaults to CWD or init)"
     )
@@ -311,7 +362,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_exec.set_defaults(func=cmd_migrate_execute)
 
     p_status = sub.add_parser("status", help="Summarize jobs per action")
-    p_status.add_argument("config")
+    p_status.add_argument(
+        "config", nargs="?", default=None, metavar="CONFIG", help=_config_help
+    )
     p_status.add_argument(
         "-p", "--project", help="Path to signac project (defaults to CWD or init)"
     )
@@ -322,8 +375,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_collect = sub.add_parser(
         "collect-params", help="Collect params (and optional docs) across parent chain"
     )
-    p_collect.add_argument("config")
     p_collect.add_argument("action", help="Target action to collect")
+    p_collect.add_argument("-c", "--config", default=None, dest="config", help=_config_help)
     p_collect.add_argument(
         "-p", "--project", help="Path to signac project (defaults to CWD or init)"
     )
@@ -346,7 +399,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_collect.set_defaults(func=cmd_collect_params)
 
     p_prepare = sub.add_parser("prepare", help="Validate, materialize, render row")
-    p_prepare.add_argument("config")
+    p_prepare.add_argument(
+        "config", nargs="?", default=None, metavar="CONFIG", help=_config_help
+    )
     p_prepare.add_argument(
         "-p", "--project", help="Path to signac project (defaults to CWD)"
     )
@@ -355,7 +410,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_prepare.set_defaults(func=cmd_prepare)
 
     p_submit = sub.add_parser("submit", help="Submit only eligible jobs via row")
-    p_submit.add_argument("config")
+    p_submit.add_argument(
+        "config", nargs="?", default=None, metavar="CONFIG", help=_config_help
+    )
     p_submit.add_argument(
         "-p", "--project", help="Path to signac project (defaults to CWD or init)"
     )

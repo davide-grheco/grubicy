@@ -245,53 +245,62 @@ Notes for actions:
 
 ## 2) Materialize jobs (and optionally render row)
 ```bash
+grubicy prepare
+```
+
+This auto-detects `pipeline.toml`, validates the config, creates jobs in topological
+order, stores parent ids under `parent_action`, and writes `workflow.toml` for row.
+Use `--no-render` to skip the workflow file, or call `grubicy materialize` directly
+to only create jobs.
+
+You can always pass an explicit path if needed:
+```bash
 grubicy prepare pipeline.toml --output workflow.toml
 ```
 
-This validates the config, creates jobs in topological order, stores parent ids under
-`parent_action`, and writes `workflow.toml` for row. Use `--no-render` to skip the
-workflow file, or call `grubicy materialize ...` directly to only create jobs.
-
 ## 3) Run actions with grubicy submit (preferred) or row
-If you have action scripts under `actions/` that accept the workspace directory, you can
-submit only ready directories (parents complete, row-eligible, not completed/submitted/waiting):
+Submit only ready directories (parents complete, row-eligible, not
+completed/submitted/waiting):
 ```bash
-grubicy submit pipeline.toml
+grubicy submit
+grubicy submit --action s2   # narrow to one action
 ```
 
-If you want to hand everything to row directly, you can still do (less filtered):
+Or hand everything to row directly:
 ```bash
 row submit
 ```
 
-To override the command per action, set `runner = "python actions/custom.py {directory}"`
-in the spec before rendering.
+To override the command for a specific action, set
+`runner = "python actions/custom.py {directory}"` in the spec before rendering.
 
 ## 4) Collect parameters and docs
 Flatten params across the dependency chain (here, for leaf `s3` jobs):
 ```bash
-grubicy collect-params pipeline.toml s3 --format csv > results.csv
+grubicy collect-params s3 --format csv > results.csv
 ```
 
-Add `--include-doc` to bring along non-reserved document fields. For JSON output,
-drop `--format` or set `--format json`.
+`collect-params` takes the action name as a positional argument; config is
+auto-detected. Add `--include-doc` to bring along non-reserved document fields.
+For JSON output, drop `--format` or set `--format json`.
 
 ## 5) Migrate when the schema changes
 Add a default state point key and cascade parent pointers safely:
 ```bash
-grubicy migrate-plan pipeline.toml s1 --setdefault b=0
-grubicy migrate-apply pipeline.toml s1
+grubicy migrate-plan s1 --setdefault b=0
+grubicy migrate-apply s1
 ```
 
-Plans are written under `.pipeline_migrations/` and execution logs progress so reruns
-can resume.
+`migrate-plan` and `migrate-apply` take the action name as a positional argument;
+config is auto-detected.  Plans are written under `.pipeline_migrations/` and
+execution logs progress so reruns can resume.
 
 For a complete worked example (including collisions and resume behavior), see
-`migrations.md`.
+[Migrations](migrations.md).
 
 ## Example walk-through
 `examples/library-example` contains the same three-stage pipeline expressed with
-grubicy. Try the sequence above from that directory to see materialization, row
+grubicy. Run `grubicy prepare` from that directory to see materialization, row
 execution, and result collection end-to-end.
 
 ## Typed parameters

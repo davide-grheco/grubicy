@@ -1,10 +1,11 @@
 import json
 from pathlib import Path
 
+import pytest
 import signac
 import tomllib
 
-from grubicy.cli import main
+from grubicy.cli import _find_config, main
 
 
 def _write_config(tmp_path: Path) -> Path:
@@ -58,8 +59,9 @@ def test_cli_migration_plan_and_execute(tmp_path, monkeypatch):
     main(
         [
             "migrate-plan",
-            str(config),
             "s1",
+            "--config",
+            str(config),
             "--project",
             str(project.path),
             "--setdefault",
@@ -76,8 +78,9 @@ def test_cli_migration_plan_and_execute(tmp_path, monkeypatch):
     main(
         [
             "migrate-apply",
-            str(config),
             "s1",
+            "--config",
+            str(config),
             "--project",
             str(project.path),
             "--plan",
@@ -105,8 +108,9 @@ def test_cli_collect_params(tmp_path, monkeypatch):
     main(
         [
             "collect-params",
-            str(config),
             "s2",
+            "--config",
+            str(config),
             "--project",
             str(project.path),
             "--include-doc",
@@ -125,8 +129,9 @@ def test_cli_migrate_plan_updates_config(tmp_path, monkeypatch):
     main(
         [
             "migrate-plan",
-            str(config),
             "s2",
+            "--config",
+            str(config),
             "--project",
             str(project.path),
             "--setdefault",
@@ -169,3 +174,62 @@ def test_get_or_init_project_does_not_walk_up(tmp_path, monkeypatch):
     # The fix should create a new project in CWD instead.
     project = _get_or_init_project()
     assert Path(project.path).resolve() == subdir.resolve()
+
+
+# ---------------------------------------------------------------------------
+# Auto-detection tests
+# ---------------------------------------------------------------------------
+
+
+def test_find_config_cwd(tmp_path, monkeypatch):
+    """_find_config returns a pipeline.toml in the CWD."""
+    monkeypatch.chdir(tmp_path)
+    cfg = tmp_path / "pipeline.toml"
+    cfg.write_text("[workspace]\n", encoding="utf-8")
+    assert _find_config() == cfg
+
+
+def test_find_config_walks_up(tmp_path, monkeypatch):
+    """_find_config walks up to a parent directory."""
+    cfg = tmp_path / "pipeline.toml"
+    cfg.write_text("[workspace]\n", encoding="utf-8")
+    subdir = tmp_path / "sub" / "subsub"
+    subdir.mkdir(parents=True)
+    monkeypatch.chdir(subdir)
+    assert _find_config() == cfg
+
+
+def test_find_config_prefers_toml_over_yaml(tmp_path, monkeypatch):
+    """pipeline.toml is preferred over pipeline.yaml when both exist."""
+    monkeypatch.chdir(tmp_path)
+    toml = tmp_path / "pipeline.toml"
+    yaml = tmp_path / "pipeline.yaml"
+    toml.write_text("[workspace]\n", encoding="utf-8")
+    yaml.write_text("workspace: {}\n", encoding="utf-8")
+    assert _find_config() == toml
+
+
+def test_find_config_returns_none_when_missing(tmp_path, monkeypatch):
+    """_find_config returns None when no pipeline config exists anywhere."""
+    monkeypatch.chdir(tmp_path)
+    assert _find_config() is None
+
+
+def test_cli_auto_detect_config(tmp_path, monkeypatch):
+    """Commands work without an explicit config when pipeline.toml is in CWD."""
+    monkeypatch.chdir(tmp_path)
+    _write_config(tmp_path)
+    project = signac.init_project("auto-project")
+
+    # validate should find the config automatically
+    main(["validate"])
+
+    # materialize should find the config automatically
+    main(["materialize", "--project", str(project.path)])
+
+
+def test_cli_auto_detect_config_missing(tmp_path, monkeypatch):
+    """A clear error is raised when no config is found and none is given."""
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(SystemExit, match="No config file found"):
+        main(["validate"])

@@ -1,22 +1,54 @@
 [workspace]
 value_file = "signac_statepoint.json"
 
+# ---------------------------------------------------------------------------
+# Row defaults — applied to every action unless overridden.
+# Remove the [row] section entirely if you don't use a cluster scheduler.
+# ---------------------------------------------------------------------------
+[row.default.action.resources]
+walltime.per_directory = "01:00:00"
+threads_per_process    = 4
+
+[row.default.action.submit_options.mycluster]
+account          = "mylab_account"
+setup            = "module load python/3.11"
+output_file_path = "row_logs"
+
+# ---------------------------------------------------------------------------
+# Actions
+# ---------------------------------------------------------------------------
+
 [[actions]]
-name = "s1"
+name    = "s1"
 sp_keys = ["p1"]
 outputs = ["s1/out.json"]
 
+[actions.resources]
+walltime.per_directory = "00:30:00"   # s1 is fast, override the default
+
+[actions.group]
+maximum_size = 8   # batch up to 8 directories per SLURM job
+
+# ---
 [[actions]]
-name = "s2"
+name    = "s2"
 sp_keys = ["p2"]
-deps = { action = "s1", sp_key = "parent_action" }
+deps    = { action = "s1", sp_key = "parent_action" }
 outputs = ["s2/out.json"]
 
+[actions.group]
+maximum_size = 4
+
+# ---
 [[actions]]
-name = "s3"
+name    = "s3"
 sp_keys = ["p3"]
-deps = { action = "s2", sp_key = "parent_action" }
+deps    = { action = "s2", sp_key = "parent_action" }
 outputs = ["s3/out.json"]
+
+# ---------------------------------------------------------------------------
+# Experiments
+# ---------------------------------------------------------------------------
 
 [[experiment]]
   [experiment.s1]

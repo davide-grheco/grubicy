@@ -50,12 +50,61 @@ grubicy materialize pipeline.toml --project /path/to/project --dry-run
 ---
 
 ## render-row
-Generate a Row `workflow.toml` from the spec. Uses `runner` if provided per
-action, otherwise falls back to `python actions/{name}.py {directory}`.
+Generate a Row `workflow.toml` from the spec.
+
 ```bash
 grubicy render-row
 grubicy render-row pipeline.toml --output workflow.toml
 ```
+
+The generated file always contains:
+
+- `[workspace]` with the signac value file path.
+- `[default.action]` if your pipeline config has a `[row.default.action]` section
+  (shared account, setup scripts, default resources — applied to every action).
+- One `[[action]]` entry per action in topological order, including:
+  - `previous_actions` wired automatically from `deps` so Row gates downstream
+    stages on upstream job completion.
+  - `[action.resources]` (walltime, threads, GPUs …) if defined on the action.
+  - `[action.submit_options.<cluster>]` (account, SBATCH flags …) if defined.
+  - `[action.group]` with the `/action == <name>` include filter and optional
+    `maximum_size` / `submit_whole`.
+
+### Adding scheduler metadata to `pipeline.toml`
+
+All Row-specific fields are optional.  They live alongside the action definition
+and are forwarded verbatim into `workflow.toml`:
+
+```toml
+# Shared defaults for every action
+[row.default.action.resources]
+walltime.per_directory = "01:00:00"
+threads_per_process    = 4
+
+[row.default.action.submit_options.mycluster]
+account          = "mylab_account"
+setup            = "module load python/3.11"
+output_file_path = "row_logs"
+
+# Per-action overrides
+[[actions]]
+name    = "train"
+sp_keys = ["lr", "epochs"]
+outputs = ["train/model.pt"]
+
+[actions.resources]
+walltime.per_directory = "04:00:00"
+threads_per_process    = 8
+
+[actions.submit_options.mycluster]
+partition = "gpu"
+custom    = ["--gres=gpu:1"]
+
+[actions.group]
+maximum_size = 1
+```
+
+See [HPC / SLURM](hpc.md) for a full end-to-end cluster example.
 
 ---
 

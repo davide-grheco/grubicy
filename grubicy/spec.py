@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import tomllib
 from collections import deque
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from itertools import product as iproduct
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
@@ -37,13 +37,29 @@ class DependencySpec:
 
 @dataclass(frozen=True)
 class ActionSpec:
-    """Describes an action (stage) in the workflow."""
+    """Describes an action (stage) in the workflow.
+
+    In addition to the materialization fields (``sp_keys``, ``dependency``,
+    ``outputs``, ``runner``), an action may carry Row-specific scheduler
+    metadata that is written verbatim into ``workflow.toml`` by
+    :func:`~grubicy.row_render.render_row_workflow`:
+
+    * ``resources`` — maps to ``[action.resources]`` (walltime, threads, GPUs …)
+    * ``submit_options`` — maps to ``[action.submit_options.<cluster>]``
+    * ``group_maximum_size`` — limits directories per submitted job
+    * ``group_submit_whole`` — require Row to always submit whole groups
+    """
 
     name: str
     sp_keys: List[str]
     dependency: Optional[DependencySpec] = None
     outputs: List[str] | None = None
     runner: Optional[str] = None
+    # Row scheduler metadata (all optional, pass-through to workflow.toml)
+    resources: Dict[str, Any] = field(default_factory=dict)
+    submit_options: Dict[str, Any] = field(default_factory=dict)
+    group_maximum_size: Optional[int] = None
+    group_submit_whole: bool = False
 
     @property
     def dep_sp_key(self) -> str:
@@ -58,8 +74,8 @@ class ActionSpec:
         ----------
         data
             Mapping parsed from config (TOML/YAML). Must contain ``name`` and may
-            provide ``sp_keys``, ``outputs``, ``runner``, and a ``deps`` table with
-            ``action`` and optional ``sp_key``.
+            provide ``sp_keys``, ``outputs``, ``runner``, a ``deps`` table, and
+            Row scheduler fields ``resources``, ``submit_options``, and ``group``.
 
         Returns
         -------
@@ -94,12 +110,45 @@ class ActionSpec:
             sp_key = raw_dep.get("sp_key", DEFAULT_PARENT_SP_KEY)
             dependency = DependencySpec(action=str(dep_action), sp_key=str(sp_key))
 
+        # Row scheduler metadata
+        raw_resources = data.get("resources") or {}
+        if not isinstance(raw_resources, dict):
+            raise ConfigValidationError(
+                f"Action '{name}': 'resources' must be a table"
+            )
+
+        raw_submit_options = data.get("submit_options") or {}
+        if not isinstance(raw_submit_options, dict):
+            raise ConfigValidationError(
+                f"Action '{name}': 'submit_options' must be a table"
+            )
+
+        group_maximum_size: Optional[int] = None
+        group_submit_whole: bool = False
+        raw_group = data.get("group") or {}
+        if not isinstance(raw_group, dict):
+            raise ConfigValidationError(f"Action '{name}': 'group' must be a table")
+        if raw_group:
+            raw_max = raw_group.get("maximum_size")
+            if raw_max is not None:
+                try:
+                    group_maximum_size = int(raw_max)
+                except (TypeError, ValueError):
+                    raise ConfigValidationError(
+                        f"Action '{name}': group.maximum_size must be an integer"
+                    )
+            group_submit_whole = bool(raw_group.get("submit_whole", False))
+
         return ActionSpec(
             name=name,
             sp_keys=sp_keys,
             dependency=dependency,
             outputs=outputs,
             runner=runner,
+            resources=dict(raw_resources),
+            submit_options=dict(raw_submit_options),
+            group_maximum_size=group_maximum_size,
+            group_submit_whole=group_submit_whole,
         )
 
 
@@ -292,6 +341,13 @@ class WorkflowSpec:
     """Parsed configuration for a workflow.
 
     Provides validation, topological ordering, and access to experiments.
+
+    Attributes
+    ----------
+    row_defaults
+        Content of the ``[row.default.action]`` section in the pipeline config,
+        written verbatim as ``[default.action]`` in the generated ``workflow.toml``.
+        Typical keys: ``command``, ``resources``, ``submit_options``.
     """
 
     def __init__(
@@ -299,10 +355,12 @@ class WorkflowSpec:
         actions: List[ActionSpec],
         experiments: List[Dict[str, Dict[str, Any]]],
         workspace: WorkspaceSpec,
+        row_defaults: Optional[Dict[str, Any]] = None,
     ):
         self.actions = actions
         self._experiments = experiments
         self.workspace = workspace
+        self.row_defaults: Dict[str, Any] = row_defaults or {}
         self._action_index = {a.name: a for a in actions}
         if len(self._action_index) != len(actions):
             raise ConfigValidationError("Action names must be unique")
@@ -359,7 +417,25 @@ class WorkflowSpec:
         )
         experiments = _combine_grids_and_experiments(grid_groups, parsed_experiments)
 
-        return WorkflowSpec(actions=actions, experiments=experiments, workspace=workspace)
+        # Parse optional [row] section → row_defaults maps to [default.action]
+        raw_row = data.get("row") or {}
+        if not isinstance(raw_row, dict):
+            raise ConfigValidationError("'row' must be a table")
+        raw_row_defaults: Dict[str, Any] = {}
+        if raw_row:
+            raw_default = raw_row.get("default") or {}
+            if not isinstance(raw_default, dict):
+                raise ConfigValidationError("'row.default' must be a table")
+            raw_row_defaults = raw_default.get("action") or {}
+            if not isinstance(raw_row_defaults, dict):
+                raise ConfigValidationError("'row.default.action' must be a table")
+
+        return WorkflowSpec(
+            actions=actions,
+            experiments=experiments,
+            workspace=workspace,
+            row_defaults=dict(raw_row_defaults),
+        )
 
     def _validate_experiments(self) -> None:
         action_names = set(self._action_index)

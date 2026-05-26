@@ -59,24 +59,21 @@ def _matches_action(name: str, pattern: str | None) -> bool:
 class RowStatus:
     completed: set[str]
     submitted: set[str]
-    waiting: set[str]
     eligible_by_action: dict[str, set[str]]
 
     @property
     def blocked(self) -> set[str]:
-        return self.completed | self.submitted | self.waiting
+        return self.completed | self.submitted
 
 
 def _gather_row_status(project_path: Path, action_names: list[str]) -> RowStatus:
     completed: set[str] = set()
     submitted: set[str] = set()
-    waiting: set[str] = set()
     eligible_by_action: dict[str, set[str]] = {}
 
     for name in action_names:
         completed |= _list_directories_with_status(project_path, "--completed", name)
         submitted |= _list_directories_with_status(project_path, "--submitted", name)
-        waiting |= _list_directories_with_status(project_path, "--waiting", name)
         eligible_by_action[name] = _list_directories_with_status(
             project_path, "--eligible", name
         )
@@ -84,7 +81,6 @@ def _gather_row_status(project_path: Path, action_names: list[str]) -> RowStatus
     return RowStatus(
         completed=completed,
         submitted=submitted,
-        waiting=waiting,
         eligible_by_action=eligible_by_action,
     )
 

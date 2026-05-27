@@ -162,6 +162,21 @@ def test_row_render_group_maximum_size(tmp_path):
     assert doc["action"][0]["group"]["maximum_size"] == 4
 
 
+def test_row_render_group_default_maximum_size_is_1(tmp_path):
+    """When group.maximum_size is not set, the renderer must emit maximum_size=1.
+
+    Without an explicit limit, Row bundles every matching directory into a
+    single SLURM job.  One directory per job is the only safe default for
+    heterogeneous HPC workloads.
+    """
+    spec = _spec([{"name": "s1", "sp_keys": ["p"]}])  # no group section at all
+
+    out_path = render_row_workflow(spec, tmp_path / "workflow.toml")
+    doc = tomllib.loads(out_path.read_text(encoding="utf-8"))
+
+    assert doc["action"][0]["group"]["maximum_size"] == 1
+
+
 def test_row_render_group_submit_whole(tmp_path):
     spec = _spec(
         [{"name": "agg", "sp_keys": ["run"], "group": {"submit_whole": True}}]
@@ -171,6 +186,8 @@ def test_row_render_group_submit_whole(tmp_path):
     doc = tomllib.loads(out_path.read_text(encoding="utf-8"))
 
     assert doc["action"][0]["group"]["submit_whole"] is True
+    # maximum_size must still be present (defaulting to 1)
+    assert doc["action"][0]["group"]["maximum_size"] == 1
 
 
 def test_row_render_group_always_has_include_filter(tmp_path):
